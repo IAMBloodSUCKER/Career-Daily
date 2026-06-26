@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java Dev Daily</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="landing-body">
+
+<header class="landing-header">
+    <div class="landing-logo">Java Dev Daily</div>
+    <nav class="landing-nav">
+        <a href="/login.html" class="landing-link">Войти</a>
+        <a href="/login.html?tab=register" class="btn btn-primary btn-sm">Регистрация</a>
+    </nav>
+</header>
+
+<main class="landing-main">
+    <section class="landing-hero">
+        <p class="landing-badge">Симулятор карьеры Java-разработчика</p>
+        <h1>Проживите рабочий день в IT — от лифта до продакшена</h1>
+        <p class="landing-lead">
+            Slack, JIRA, IntelliJ, Kubernetes, daily standup и HR-предупреждения.
+            Учитесь на ошибках в безопасной среде или играйте в реалистичном режиме.
+        </p>
+        <div class="landing-actions">
+            <a id="landing-play-btn" href="/login.html?next=/play.html" class="btn btn-primary btn-lg">▶ Начать игру</a>
+            <a href="/login.html?tab=register" class="btn btn-secondary btn-lg">Создать аккаунт</a>
+        </div>
+    </section>
+
+    <section class="landing-features">
+        <article class="landing-feature">
+            <h3>🏢 Офис и DevOS</h3>
+            <p>Дойдите до стола, включите рабочий стол с настоящими инструментами разработчика.</p>
+        </article>
+        <article class="landing-feature">
+            <h3>📋 Задачи и код</h3>
+            <p>Исправляйте баги, отвечайте в Slack, закрывайте тикеты и проходите code review.</p>
+        </article>
+        <article class="landing-feature">
+            <h3>💾 Облачное сохранение</h3>
+            <p>Прогресс привязан к аккаунту — продолжайте игру с любого устройства.</p>
+        </article>
+    </section>
+
+    <p class="landing-disclaimer">
+        Java Dev Daily — независимый симулятор. Все названия продуктов принадлежат их правообладателям.
+        Мы не аффилированы с Atlassian, JetBrains, Slack Technologies и др.
+        <a href="/legal.html">Подробнее о товарных знаках</a>
+    </p>
+</main>
+
+<footer class="landing-footer">
+    <p>Java Dev Daily · Spring Boot + PostgreSQL · <a href="/legal.html" class="landing-link">Legal</a></p>
+</footer>
+
+<script>
+(async () => {
+    try {
+        const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+        if (res.ok) {
+            const playBtn = document.getElementById('landing-play-btn');
+            if (playBtn) playBtn.href = '/play.html';
+            const nav = document.querySelector('.landing-nav');
+            if (nav) {
+                const user = await res.json();
+                nav.innerHTML = `
+                    <span class="landing-user">👤 ${user.displayName || user.username}</span>
+                    <a href="/play.html" class="btn btn-primary btn-sm">Играть</a>
+                    <button type="button" id="landing-logout" class="btn btn-secondary btn-sm">Выйти</button>`;
+                document.getElementById('landing-logout')?.addEventListener('click', async () => {
+                    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+                    location.reload();
+                });
+            }
+        }
+    } catch (_) { /* guest view */ }
+})();
+</script>
+</body>
+</html>

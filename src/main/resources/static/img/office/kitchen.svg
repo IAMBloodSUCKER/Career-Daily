@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="w" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff7ed"/>
+      <stop offset="100%" stop-color="#fed7aa"/>
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#w)"/>
+  <text x="960" y="95" fill="#9a3412" font-family="Segoe UI,Arial,sans-serif" font-size="44" font-weight="700" text-anchor="middle">Office Kitchen</text>
+  <rect x="80" y="140" width="560" height="540" rx="16" fill="#e2e8f0"/>
+  <rect x="140" y="200" width="180" height="360" rx="10" fill="#374151"/>
+  <rect x="155" y="220" width="150" height="110" rx="6" fill="#111827"/>
+  <text x="230" y="285" fill="#fbbf24" font-family="Segoe UI,Arial,sans-serif" font-size="18" font-weight="600" text-anchor="middle">Coffee</text>
+  <rect x="360" y="280" width="240" height="160" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="3"/>
+  <rect x="700" y="180" width="1100" height="120" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="700" y="340" width="500" height="340" rx="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="3"/>
+  <rect x="1260" y="340" width="500" height="340" rx="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="3"/>
+  <circle cx="950" cy="510" r="55" fill="#fdba74"/>
+  <circle cx="1510" cy="510" r="55" fill="#fdba74"/>
+  <rect y="760" width="1920" height="320" fill="#fb923c" opacity="0.35"/>
+</svg>

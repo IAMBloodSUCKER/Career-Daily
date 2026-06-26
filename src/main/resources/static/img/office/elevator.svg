@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5b6b82"/>
+      <stop offset="100%" stop-color="#2a3340"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e8edf5"/>
+      <stop offset="50%" stop-color="#aeb8c8"/>
+      <stop offset="100%" stop-color="#7d8798"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6b7585"/>
+      <stop offset="100%" stop-color="#3d4654"/>
+    </linearGradient>
+    <radialGradient id="light" cx="50%" cy="12%" r="60%">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <rect width="1920" height="1080" fill="url(#light)"/>
+  <rect x="80" y="40" width="820" height="980" fill="url(#metal)" rx="6"/>
+  <rect x="1020" y="40" width="820" height="980" fill="url(#metal)" rx="6"/>
+  <rect x="900" y="40" width="120" height="980" fill="#d5dbe5"/>
+  <rect x="0" y="860" width="1920" height="220" fill="url(#floor)"/>
+  <rect x="250" y="100" width="300" height="480" rx="8" fill="#8fa0b8" opacity="0.55"/>
+  <rect x="1370" y="100" width="300" height="480" rx="8" fill="#8fa0b8" opacity="0.55"/>
+  <rect x="1540" y="120" width="130" height="170" rx="10" fill="#2563eb"/>
+  <text x="1605" y="225" fill="#fff" font-family="Segoe UI,Arial,sans-serif" font-size="72" font-weight="700" text-anchor="middle">3</text>
+  <text x="1605" y="262" fill="#dbeafe" font-family="Segoe UI,Arial,sans-serif" font-size="20" text-anchor="middle">FLOOR</text>
+  <text x="400" y="640" fill="#e2e8f0" font-family="Segoe UI,Arial,sans-serif" font-size="32" font-weight="600" text-anchor="middle">Engineering</text>
+  <rect x="930" y="180" width="60" height="560" fill="#f8fafc" opacity="0.35"/>
+  <ellipse cx="960" cy="930" rx="240" ry="50" fill="#000" opacity="0.2"/>
+</svg>

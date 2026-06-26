@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" role="img" aria-label=">A:0 A?@8=B0">
+  <defs>
+    <filter id="noteShadow" x="-8%" y="-8%" width="116%" height="120%">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect width="800" height="520" fill="#f8fafc"/>
+  <rect x="24" y="24" width="752" height="472" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="3"/>
+  <line x1="24" y1="88" x2="776" y2="88" stroke="#e2e8f0" stroke-width="2"/>
+  <text x="48" y="62" fill="#334155" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">Sprint 42</text>
+  <text x="720" y="62" fill="#64748b" font-family="Segoe UI, Arial, sans-serif" font-size="14" text-anchor="end">14 SP · 5 days left</text>
+
+  <!-- grid lines -->
+  <line x1="280" y1="88" x2="280" y2="472" stroke="#e2e8f0" stroke-width="2"/>
+  <line x1="536" y1="88" x2="536" y2="472" stroke="#e2e8f0" stroke-width="2"/>
+  <line x1="48" y1="200" x2="752" y2="200" stroke="#f1f5f9" stroke-width="1.5"/>
+  <line x1="48" y1="312" x2="752" y2="312" stroke="#f1f5f9" stroke-width="1.5"/>
+  <line x1="48" y1="424" x2="752" y2="424" stroke="#f1f5f9" stroke-width="1.5"/>
+
+  <text x="164" y="112" fill="#64748b" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="600" text-anchor="middle">TO DO</text>
+  <text x="408" y="112" fill="#64748b" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="600" text-anchor="middle">IN PROGRESS</text>
+  <text x="656" y="112" fill="#64748b" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="600" text-anchor="middle">DONE</text>
+
+  <!-- sticky notes -->
+  <g filter="url(#noteShadow)">
+    <rect x="64" y="132" width="92" height="72" rx="4" fill="#fef08a" transform="rotate(-2 110 168)"/>
+    <text x="78" y="158" fill="#713f12" font-family="Segoe UI, Arial, sans-serif" font-size="11">Docs</text>
+    <text x="78" y="176" fill="#92400e" font-family="Segoe UI, Arial, sans-serif" font-size="10">onboarding</text>
+
+    <rect x="72" y="228" width="96" height="76" rx="4" fill="#bfdbfe" transform="rotate(1.5 120 266)"/>
+    <text x="84" y="254" fill="#1e3a8a" font-family="Segoe UI, Arial, sans-serif" font-size="11">API spec</text>
+    <text x="84" y="272" fill="#1d4ed8" font-family="Segoe UI, Arial, sans-serif" font-size="10">review</text>
+
+    <rect x="300" y="140" width="104" height="84" rx="4" fill="#fde68a" transform="rotate(-1 352 182)"/>
+    <text x="314" y="168" fill="#78350f" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700">JIRA-142</text>
+    <text x="314" y="186" fill="#92400e" font-family="Segoe UI, Arial, sans-serif" font-size="10">NPE fix</text>
+    <text x="314" y="202" fill="#b45309" font-family="Segoe UI, Arial, sans-serif" font-size="10">High</text>
+
+    <rect x="318" y="252" width="88" height="68" rx="4" fill="#fbcfe8" transform="rotate(2 362 286)"/>
+    <text x="330" y="278" fill="#831843" font-family="Segoe UI, Arial, sans-serif" font-size="11">PR #247</text>
+    <text x="330" y="296" fill="#9d174d" font-family="Segoe UI, Arial, sans-serif" font-size="10">review</text>
+
+    <rect x="296" y="352" width="92" height="70" rx="4" fill="#bbf7d0" transform="rotate(-1.5 342 387)"/>
+    <text x="310" y="378" fill="#14532d" font-family="Segoe UI, Arial, sans-serif" font-size="11">Daily</text>
+    <text x="310" y="396" fill="#166534" font-family="Segoe UI, Arial, sans-serif" font-size="10">09:00</text>
+
+    <rect x="568" y="148" width="96" height="76" rx="4" fill="#bbf7d0" transform="rotate(1 616 186)"/>
+    <text x="582" y="174" fill="#14532d" font-family="Segoe UI, Arial, sans-serif" font-size="11">CI green</text>
+    <text x="582" y="192" fill="#166534" font-family="Segoe UI, Arial, sans-serif" font-size="10">main</text>
+
+    <rect x="584" y="260" width="88" height="72" rx="4" fill="#fef08a" transform="rotate(-2 628 296)"/>
+    <text x="598" y="286" fill="#713f12" font-family="Segoe UI, Arial, sans-serif" font-size="11">Deploy</text>
+    <text x="598" y="304" fill="#92400e" font-family="Segoe UI, Arial, sans-serif" font-size="10">staging</text>
+
+    <rect x="560" y="368" width="100" height="78" rx="4" fill="#bfdbfe" transform="rotate(1.5 610 407)"/>
+    <text x="574" y="394" fill="#1e3a8a" font-family="Segoe UI, Arial, sans-serif" font-size="11">Retro</text>
+    <text x="574" y="412" fill="#1d4ed8" font-family="Segoe UI, Arial, sans-serif" font-size="10">Fri 16:00</text>
+  </g>
+
+  <!-- hotspot ring (like in-game marker) -->
+  <circle cx="352" cy="182" r="28" fill="none" stroke="#0f172a" stroke-width="2.5" opacity="0.55"/>
+</svg>

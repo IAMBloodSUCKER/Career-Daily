@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <rect width="1920" height="1080" fill="#030712"/>
+  <rect x="160" y="50" width="1600" height="900" rx="12" fill="#0f172a" stroke="#1d4ed8" stroke-width="3"/>
+  <rect x="200" y="90" width="1520" height="820" fill="#1e3a5f"/>
+  <text x="960" y="500" fill="#fff" font-family="Segoe UI,Arial,sans-serif" font-size="44" text-anchor="middle">03@C7:0 DevOS&</text>
+  <rect x="560" y="560" width="800" height="12" rx="6" fill="#1e293b"/>
+  <rect x="560" y="560" width="480" height="12" rx="6" fill="#3b82f6"/>
+</svg>

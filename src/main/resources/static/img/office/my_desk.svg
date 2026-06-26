@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#93c5fd"/>
+      <stop offset="40%" stop-color="#e2e8f0"/>
+      <stop offset="100%" stop-color="#94a3b8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <rect x="300" y="500" width="1320" height="400" fill="#ffffff" rx="10" stroke="#94a3b8"/>
+  <rect x="640" y="280" width="640" height="420" fill="#374151" rx="12"/>
+  <rect x="670" y="310" width="580" height="340" fill="#0f172a" rx="6"/>
+  <text x="960" y="500" fill="#60a5fa" font-family="Segoe UI,Arial,sans-serif" font-size="40" font-weight="300" text-anchor="middle">DevOS</text>
+  <rect x="720" y="700" width="480" height="28" rx="6" fill="#1f2937"/>
+  <rect x="1220" y="340" width="90" height="90" fill="#fde047"/>
+  <text x="1265" y="395" fill="#78350f" font-family="Segoe UI,Arial,sans-serif" font-size="16" font-weight="700" text-anchor="middle">JIRA</text>
+  <rect x="380" y="600" width="80" height="130" rx="14" fill="#111827"/>
+  <rect x="392" y="615" width="56" height="95" rx="6" fill="#1e293b"/>
+  <ellipse cx="960" cy="960" rx="340" ry="55" fill="#000" opacity="0.18"/>
+</svg>

@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: career-daily-db
+    environment:
+      POSTGRES_DB: devsimulator
+      POSTGRES_USER: devsimulator
+      POSTGRES_PASSWORD: devsimulator
+    ports:
+      - "5433:5432"
+    volumes:
+      - devsimulator_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devsimulator -d devsimulator"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    build: .
+    image: career-daily-app:latest
+    container_name: career-daily-app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/devsimulator
+      SPRING_DATASOURCE_USERNAME: devsimulator
+      SPRING_DATASOURCE_PASSWORD: devsimulator
+      APP_ADMIN_BOOTSTRAP_ENABLED: "true"
+      APP_ADMIN_DEV_LOGIN_ENABLED: "true"
+      APP_ADMIN_USERNAME: admin
+      APP_ADMIN_PASSWORD: admin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  devsimulator_pgdata:

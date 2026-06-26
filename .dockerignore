@@ -1,0 +1,10 @@
+target/
+data/
+.git/
+.idea/
+*.iml
+*.log
+README.md
+scripts/
+agent-transcripts/
+assets/

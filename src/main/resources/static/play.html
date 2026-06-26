@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java Dev Daily — Игра</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/office-scenes.css">
+</head>
+<body>
+
+<!-- Создание персонажа -->
+<div id="menu-screen" class="screen menu-screen">
+    <div class="menu-card menu-card-wide">
+        <div class="menu-user-bar">
+            <span id="menu-user-label" class="menu-user-label"></span>
+            <div class="menu-user-actions">
+                <div class="lang-switch" title="Language / Язык">
+                    <button type="button" class="lang-btn active" data-lang="ru">RU</button>
+                    <button type="button" class="lang-btn" data-lang="en">EN</button>
+                </div>
+                <a id="admin-link" href="/admin.html" class="btn btn-secondary btn-sm hidden" data-i18n="menu.admin">Админка</a>
+                <button id="logout-btn" type="button" class="btn btn-secondary btn-sm" data-i18n="menu.logout">Выйти</button>
+            </div>
+        </div>
+        <h1>Java Dev Daily</h1>
+
+        <div id="menu-resume-panel" class="menu-resume-panel hidden">
+            <p class="menu-resume-label" data-i18n="menu.resume.label">Текущее сохранение</p>
+            <p id="menu-resume-summary" class="menu-resume-summary"></p>
+            <button id="resume-game-btn" type="button" class="btn btn-primary btn-resume" data-i18n="menu.resume.btn">▶ Продолжить игру</button>
+            <p class="menu-resume-hint" data-i18n="menu.resume.hint">Прогресс сохраняется в вашем аккаунте — можно продолжить с любого браузера.</p>
+            <hr class="menu-divider">
+            <p class="menu-new-hint" data-i18n="menu.new.hint">Новая игра — создайте другого персонажа (текущий прогресс будет заменён):</p>
+        </div>
+
+        <p class="subtitle" data-i18n="menu.subtitle">Создайте своего разработчика</p>
+
+        <label class="field-label" data-i18n="menu.name">Имя</label>
+        <input id="player-name" type="text" data-i18n-placeholder="menu.name.placeholder" placeholder="Алексей" class="text-input" maxlength="40">
+
+        <div class="char-row">
+            <div class="char-field">
+                <label class="field-label" data-i18n="menu.age">Возраст</label>
+                <input id="player-age" type="number" value="22" min="18" max="65" class="text-input">
+            </div>
+            <div class="char-field">
+                <label class="field-label" data-i18n="menu.exp">Опыт (лет)</label>
+                <input id="player-exp" type="number" value="1" min="0" max="40" class="text-input">
+            </div>
+        </div>
+
+        <label class="field-label" data-i18n="menu.career">Уровень карьеры</label>
+        <div id="career-presets" class="career-presets"></div>
+        <p id="career-hint" class="career-hint"></p>
+
+        <label class="field-label" data-i18n="menu.education">Образование</label>
+        <select id="player-education" class="text-input select-input"></select>
+
+        <label class="field-label" data-i18n="menu.stack">Стек (выберите 1–6)</label>
+        <div id="stack-list" class="stack-list"></div>
+
+        <label class="field-label" data-i18n="menu.mode">Режим игры</label>
+        <div id="mode-list" class="mode-list"></div>
+        <p id="mode-desc" class="mode-desc"></p>
+        <p class="menu-day-info" data-i18n="menu.dayInfo">⏱ 1 игровой день = 1 реальный час (09:00–17:00). Минимум неделя во всех режимах.</p>
+
+        <div id="char-errors" class="char-errors hidden"></div>
+        <div id="char-preview" class="char-preview hidden"></div>
+
+        <button id="to-onboarding-btn" class="btn btn-primary" data-i18n="menu.next">Далее →</button>
+
+        <p class="trademark-notice">
+            Java Dev Daily — независимый симулятор. Все названия продуктов принадлежат их правообладателям.
+            Мы не аффилированы с Atlassian, JetBrains, Slack Technologies и др.
+            <a href="/legal.html" target="_blank" rel="noopener">Подробнее</a>
+        </p>
+    </div>
+</div>
+
+<!-- Введение -->
+<div id="onboarding-screen" class="screen onboarding-screen hidden">
+    <div class="onboarding-card">
+        <div class="onboarding-progress">
+            <span id="ob-step-1" class="ob-dot active">1</span>
+            <span class="ob-line"></span>
+            <span id="ob-step-2" class="ob-dot">2</span>
+            <span class="ob-line"></span>
+            <span id="ob-step-3" class="ob-dot">3</span>
+            <span class="ob-line"></span>
+            <span id="ob-step-4" class="ob-dot">4</span>
+        </div>
+
+        <div id="ob-panel-1" class="ob-panel">
+            <h2 data-i18n="ob.welcome">Добро пожаловать!</h2>
+            <p class="ob-text" id="ob-welcome-text"></p>
+            <div class="ob-tutorial">
+                <h3 class="ob-tutorial-title" data-i18n="ob.tutorial.title">Краткое обучение</h3>
+                <ol class="ob-tutorial-steps">
+                    <li data-i18n="ob.tutorial.1"><strong>Офис</strong> — как в визуальной новелле: стрелки на краях, точки на сцене. Дойдите до стола.</li>
+                    <li data-i18n="ob.tutorial.2"><strong>DevOS</strong> — рабочий стол с окнами: Slack, IntelliJ, JIRA, Kubernetes, Grafana…</li>
+                    <li data-i18n="ob.tutorial.3"><strong>Задачи</strong> — справа список на день; слева блок «Активная задача» с текущим шагом.</li>
+                    <li data-i18n="ob.tutorial.4"><strong>Slack → IntelliJ → JIRA</strong> — типичный цикл: прочитать → исправить код → закрыть тикет.</li>
+                    <li data-i18n="ob.tutorial.5"><strong>Инциденты</strong> — логи в K8s/Docker, метрики в Grafana, фикс в IntelliJ.</li>
+                    <li data-i18n="ob.tutorial.6"><strong>HR</strong> — в учебном режиме первые 3 дня без увольнения; нужна серия косяков.</li>
+                    <li data-i18n="ob.tutorial.7"><strong>Конец дня</strong> — кнопка справа внизу: зарплата, перенос задач, новый день.</li>
+                </ol>
+                <p class="ob-tutorial-tip" data-i18n="ob.tutorial.tip">💡 После старта вас проведут по офису и рабочему столу. Можно пропустить обучение в любой момент.</p>
+            </div>
+            <ul class="ob-list">
+                <li data-i18n="ob.apps">💬 Slack · 🏢 Портал · 💻 IntelliJ · 📋 JIRA · ☸️ Kubernetes · 📊 Grafana · 🦫 DBeaver · 📧 Outlook…</li>
+            </ul>
+        </div>
+
+        <div id="ob-panel-2" class="ob-panel hidden">
+            <h2 data-i18n="ob.project.title">Выберите проект</h2>
+            <p class="ob-sub" data-i18n="ob.project.sub">Слева — список, справа — полное описание</p>
+            <div class="project-picker">
+                <div id="project-list" class="project-list"></div>
+                <div id="project-detail" class="project-detail">
+                    <p class="project-detail-placeholder" data-i18n="ob.project.placeholder">Выберите проект из списка</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="ob-panel-3" class="ob-panel hidden">
+            <h2 data-i18n="ob.team.title">Знакомство с командой</h2>
+            <p class="ob-sub" id="ob-team-sub"></p>
+            <div id="team-list" class="team-list"></div>
+        </div>
+
+        <div id="ob-panel-4" class="ob-panel hidden">
+            <h2 id="ob-project-title"></h2>
+            <p class="ob-tagline" id="ob-project-tagline"></p>
+            <p class="ob-text" id="ob-project-desc"></p>
+            <div class="ob-role-box">
+                <strong>Ваша роль:</strong> <span id="ob-your-role"></span>
+            </div>
+            <div class="tech-stack" id="ob-tech-stack"></div>
+            <p class="ob-arch" id="ob-architecture"></p>
+            <div id="ob-architecture-diagram" class="ob-arch-diagram"></div>
+            <p class="ob-hint" id="ob-first-day"></p>
+        </div>
+
+        <div class="ob-nav">
+            <button id="ob-back-btn" class="btn btn-secondary hidden" data-i18n="ob.back">← Назад</button>
+            <button id="ob-next-btn" class="btn btn-primary">Далее →</button>
+            <button id="start-btn" class="btn btn-primary hidden">Начать рабочий день 🚀</button>
+        </div>
+    </div>
+</div>
+
+<!-- Предыстория: тёмный экран, время, до события -->
+<div id="prelude-screen" class="screen prelude-screen hidden">
+    <div class="prelude-inner">
+        <p id="prelude-date" class="prelude-date"></p>
+        <p id="prelude-time" class="prelude-time">07:08</p>
+        <p id="prelude-line1" class="prelude-line prelude-line-main"></p>
+        <p id="prelude-line2" class="prelude-line prelude-line-sub"></p>
+        <p id="prelude-status" class="prelude-status"></p>
+        <p class="prelude-hint" data-i18n="prelude.hint">Нажмите, чтобы пропустить</p>
+    </div>
+</div>
+
+<!-- Офис: визуальная новелла → стол → ПК -->
+<div id="arrival-screen" class="screen fp-screen hidden">
+    <div class="fp-viewport" id="fp-viewport">
+        <div class="fp-stage-wrap">
+            <div class="fp-stage" id="fp-stage">
+                <div class="fp-scene" id="fp-scene" data-room="elevator">
+                    <img class="fp-scene-img" id="fp-scene-img" src="/img/office/elevator.png?v=3" alt="">
+                </div>
+                <div class="fp-hotspots" id="fp-hotspots"></div>
+            </div>
+            <div class="fp-curtain" id="fp-curtain"></div>
+            <div class="fp-nav-arrows" id="fp-nav-arrows"></div>
+        </div>
+        <div class="fp-minimap" id="fp-minimap"></div>
+    </div>
+    <div class="fp-hud">
+        <div class="fp-hud-top">
+            <button type="button" id="fp-back-btn" class="fp-back-btn hidden" title="Backspace">← Назад</button>
+            <span id="fp-time" class="fp-time">08:55</span>
+            <span id="fp-location" class="fp-location">Лифт · 3 этаж</span>
+            <button type="button" id="fp-audio-btn" class="fp-audio-btn" title="Звук офиса">🔊</button>
+            <div class="fp-timer-wrap">
+                <div class="arrival-timer-bar" id="arrival-timer-bar"></div>
+            </div>
+        </div>
+        <div class="fp-narrative-panel">
+            <p id="fp-narrative" class="fp-narrative"></p>
+            <p class="fp-hint">Нажмите стрелку на краю экрана или точку на сцене · Backspace — назад</p>
+            <div id="fp-choices" class="fp-choices"></div>
+        </div>
+    </div>
+    <div id="fp-inspect-overlay" class="fp-inspect-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="fp-inspect-caption">
+        <button type="button" class="fp-inspect-backdrop" id="fp-inspect-backdrop" aria-label="Закрыть"></button>
+        <div class="fp-inspect-card">
+            <img id="fp-inspect-img" class="fp-inspect-img" src="" alt="">
+            <p id="fp-inspect-caption" class="fp-inspect-caption"></p>
+        </div>
+    </div>
+</div>
+
+<!-- Проснулись — экран телефона -->
+<div id="wake-screen" class="screen wake-screen hidden">
+    <div class="wake-ambient"></div>
+    <div class="phone-device">
+        <div class="phone-bezel">
+            <div class="phone-notch"></div>
+            <div class="phone-screen">
+                <div class="phone-status-bar">
+                    <span class="phone-status-time" id="wake-status-time">11:47</span>
+                    <div class="phone-status-icons">
+                        <span aria-hidden="true">📶</span>
+                        <span class="phone-wifi" aria-hidden="true">Wi‑Fi</span>
+                        <span class="phone-battery" aria-hidden="true">🔋 24%</span>
+                    </div>
+                </div>
+                <div class="phone-wallpaper"></div>
+                <div class="phone-lock-content">
+                    <p class="phone-lock-time" id="wake-clock">11:47</p>
+                    <p class="phone-lock-date" id="wake-date">Четверг, 25 июня</p>
+                </div>
+                <div class="phone-notif-stack">
+                    <div class="phone-notification phone-notification-sms">
+                        <div class="phone-notif-leading">💬</div>
+                        <div class="phone-notif-main">
+                            <div class="phone-notif-header">
+                                <strong id="wake-sms-from">Анна С.</strong>
+                                <span class="phone-notif-app">Сообщения</span>
+                                <span class="phone-notif-when">сейчас</span>
+                            </div>
+                            <p id="wake-sms-text" class="phone-notif-body">@you Ты где? Daily уже начался. Ответь, как будешь на месте.</p>
+                        </div>
+                    </div>
+                </div>
+                <p class="wake-prompt">Что ответить?</p>
+                <div class="wake-actions">
+                    <button class="btn btn-primary wake-reply" data-arrival="LATE" data-reply="APOLOGY">🏃 Извините, бегу на работу!</button>
+                    <button class="btn btn-secondary wake-reply" data-arrival="LATE" data-reply="EXCUSE">⏰ Застрял в пробке, буду через 20 мин</button>
+                    <button class="btn btn-secondary wake-reply" data-arrival="OVERSLEPT" data-reply="LIE">😴 Проспал будильник…</button>
+                </div>
+                <div class="phone-home-bar" aria-hidden="true"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Игра -->
+<div id="game-screen" class="screen game-screen hidden">
+    <header class="top-bar">
+        <span class="avatar">☕</span>
+        <div class="player-info">
+            <div class="player-row">
+                <span id="g-name" class="player-name"></span>
+                <span id="g-level" class="level-badge"></span>
+                <span id="g-project" class="project-badge"></span>
+            </div>
+            <div class="meta-row">
+                <span id="g-day"></span>
+                <span id="g-mode"></span>
+                <span id="g-career" class="career-label"></span>
+                <span id="g-clock" class="clock"></span>
+                <span id="g-slack" class="slack-channel"></span>
+            </div>
+        </div>
+        <div class="spacer"></div>
+        <span id="g-hours" class="hours-label"></span>
+        <button id="menu-btn" class="btn btn-secondary">Меню</button>
+    </header>
+
+    <div class="game-layout">
+        <aside class="stats-panel">
+            <h2>Показатели</h2>
+            <div class="stat-block">
+                <span class="stat-label">Опыт</span>
+                <div class="bar"><div id="bar-exp" class="bar-fill exp"></div></div>
+                <span id="val-exp" class="stat-value"></span>
+            </div>
+            <div class="stat-block">
+                <span class="stat-label">Зарплата</span>
+                <span id="val-money" class="money-value"></span>
+            </div>
+            <div class="stat-row">
+                <div class="stat-block half">
+                    <span class="stat-label">Стресс</span>
+                    <div class="bar"><div id="bar-stress" class="bar-fill stress"></div></div>
+                    <span id="val-stress" class="stat-value"></span>
+                </div>
+                <div class="stat-block half">
+                    <span class="stat-label">Здоровье</span>
+                    <div class="bar"><div id="bar-health" class="bar-fill health"></div></div>
+                    <span id="val-health" class="stat-value"></span>
+                </div>
+            </div>
+            <div class="stat-block">
+                <span class="stat-label">Энергия</span>
+                <div class="bar"><div id="bar-energy" class="bar-fill energy"></div></div>
+                <span id="val-energy" class="stat-value"></span>
+            </div>
+            <div class="skills-section">
+                <h3 class="skills-heading">Навыки</h3>
+                <div class="skill-row">
+                    <div class="skill-row-head">
+                        <span class="stat-label">Java</span>
+                        <span id="val-java" class="skill-value">—</span>
+                    </div>
+                    <div class="bar skill-bar"><div id="bar-java" class="bar-fill skill-java"></div></div>
+                    <p class="skill-hint">Технический уровень · растёт от задач с кодом</p>
+                </div>
+                <div class="skill-row">
+                    <div class="skill-row-head">
+                        <span class="stat-label">Коммуникация</span>
+                        <span id="val-soft" class="skill-value">—</span>
+                    </div>
+                    <div class="bar skill-bar"><div id="bar-soft" class="bar-fill skill-soft"></div></div>
+                    <p class="skill-hint">Slack, митинги, перерывы · soft skills</p>
+                </div>
+                <div class="skill-row">
+                    <div class="skill-row-head">
+                        <span class="stat-label">Качество кода</span>
+                        <span id="val-code" class="skill-value">—</span>
+                    </div>
+                    <div class="bar skill-bar"><div id="bar-code" class="bar-fill skill-code"></div></div>
+                    <p class="skill-hint">Влияет на зарплату в конце дня</p>
+                </div>
+                <div class="skill-row">
+                    <div class="skill-row-head">
+                        <span class="stat-label">Отношения в команде</span>
+                        <span id="val-colleagues" class="skill-value">—</span>
+                    </div>
+                    <div class="bar skill-bar"><div id="bar-colleagues" class="bar-fill skill-colleagues"></div></div>
+                    <p class="skill-hint">1–10 · падает от ошибок и HR, растёт от daily</p>
+                </div>
+                <details class="skills-help">
+                    <summary>Что означают цифры?</summary>
+                    <ul>
+                        <li><strong>Java (0–100)</strong> — насколько уверенно решаете технические задачи. +за баги, фичи, прод-фиксы.</li>
+                        <li><strong>Коммуникация (0–100)</strong> — митинги, ответы в Slack, перерывы с коллегами.</li>
+                        <li><strong>Качество кода (%)</strong> — аккуратность решений; чем выше, тем больше $ за день.</li>
+                        <li><strong>Отношения (1–10)</strong> — репутация. При 3 предупреждениях HR и оценке ≤2 — увольнение.</li>
+                    </ul>
+                </details>
+            </div>
+            <p id="career-pace-hint" class="career-pace-hint"></p>
+            <div class="stat-block warnings-block">
+                <span class="stat-label">⚠ Дисциплина HR</span>
+                <span id="val-warnings" class="warnings-value">0 / 5</span>
+                <p class="warnings-hint">За опоздания, прогулы и срыв дедлайнов. При 5 — увольнение.</p>
+                <ul id="warnings-list" class="warnings-list"></ul>
+                <details class="warnings-rules">
+                    <summary>За что могут выписать?</summary>
+                    <ul>
+                        <li>Опоздание / пропуск daily</li>
+                        <li>Грубое опоздание (проспали)</li>
+                        <li>Ложь Team Lead в SMS</li>
+                        <li>0 задач закрыто за день</li>
+                        <li>Прогул (день без работы)</li>
+                        <li>2+ задач не закрыты к вечеру</li>
+                    </ul>
+                </details>
+            </div>
+            <hr class="separator">
+            <h2 id="tutorial-active-task">Активная задача</h2>
+            <div id="objectives-list" class="objectives-list"></div>
+            <hr class="separator">
+            <h2 class="events-heading">События</h2>
+            <div id="event-log" class="event-log"></div>
+        </aside>
+
+        <main class="desktop-area">
+            <div class="workspace-desktop" id="workspace-desktop">
+                <div class="desktop-wallpaper" id="desktop-wallpaper"></div>
+                <div class="desktop-watermark" id="desktop-watermark"></div>
+                <div class="desktop-sidebar">
+                    <div id="desktop-icons" class="desktop-icons"></div>
+                    <button type="button" id="desktop-recycle" class="desktop-recycle app-icon" title="Корзина">
+                        <span class="app-emoji">🗑</span>
+                        <span class="app-label">Корзина</span>
+                    </button>
+                </div>
+
+                <div class="desktop-windows" id="desktop-windows">
+                    <div id="desk-lock" class="desk-lock hidden">
+                        <p>🔒 Подойдите к рабочему месту, чтобы пользоваться компьютером</p>
+                    </div>
+                </div>
+
+                <div id="meeting-reminder-bar" class="meeting-reminder-bar hidden" role="status" aria-live="polite"></div>
+
+                <div id="notification-stack" class="notification-stack"></div>
+
+                <div id="start-menu" class="start-menu hidden">
+                    <div class="start-menu-header">
+                        <span class="start-menu-user">👨‍💻 Рабочий профиль</span>
+                    </div>
+                    <input id="start-search" type="text" class="start-search" placeholder="Поиск приложений…" autocomplete="off">
+                    <div id="start-menu-apps" class="start-menu-apps"></div>
+                </div>
+
+                <nav class="taskbar">
+                    <button type="button" id="start-btn-desktop" class="taskbar-start-btn" title="Меню DevOS">
+                        <span class="taskbar-start-icon">⊞</span>
+                        <span class="taskbar-start-label">DevOS</span>
+                    </button>
+                    <div id="taskbar-pinned" class="taskbar-pinned"></div>
+                    <div class="taskbar-spacer"></div>
+                    <div class="taskbar-tray">
+                        <button type="button" class="tray-btn" data-app="contacts" title="Телефон">📱</button>
+                        <button type="button" class="tray-btn" data-app="coffee" title="Кофе">☕</button>
+                        <button type="button" id="office-walk-btn" class="tray-btn tray-office hidden" title="Прогулка по офису">🚶</button>
+                        <span class="tray-divider"></span>
+                        <span class="tray-icon" title="Сеть">📶</span>
+                        <span id="taskbar-project" class="tray-project"></span>
+                        <span id="taskbar-clock" class="taskbar-clock"></span>
+                    </div>
+                </nav>
+            </div>
+            <div id="toast" class="toast hidden"></div>
+        </main>
+
+        <aside class="actions-panel">
+            <h2 data-i18n="game.tasksToday">📋 Задачи на сегодня</h2>
+            <div id="task-list" class="task-list"></div>
+            <hr class="separator">
+            <h2 data-i18n="game.break">🌙 Перерыв</h2>
+            <div id="rest-list" class="rest-list"></div>
+            <button id="end-day-btn" class="btn btn-primary btn-full" data-i18n="game.endDay">Закончить день →</button>
+        </aside>
+    </div>
+    <footer class="game-trademark-bar" title="Товарные знаки">
+        <span data-i18n="game.trademark">Независимый симулятор · названия продуктов принадлежат правообладателям ·</span>
+        <a href="/legal.html" target="_blank" rel="noopener" data-i18n="game.legal">Legal</a>
+    </footer>
+</div>
+
+<!-- Сцена перерыва (кофе, спортзал…) -->
+<div id="break-overlay" class="break-overlay hidden">
+    <div class="break-room">
+        <div class="break-visual" id="break-emoji">☕</div>
+        <h2 id="break-title" class="break-title">Кухня</h2>
+        <p id="break-narrative" class="break-narrative"></p>
+        <div id="break-choices" class="break-choices"></div>
+        <button type="button" class="btn btn-secondary break-skip" onclick="skipBreakScene()" data-i18n="break.skip">Пропустить →</button>
+    </div>
+</div>
+
+<!-- Game Over -->
+<div id="meeting-overlay" class="meeting-overlay hidden">
+    <div class="meeting-room">
+        <header class="meeting-header">
+            <div>
+                <h2 id="meeting-title">Daily Standup</h2>
+                <p id="meeting-subtitle" class="meeting-subtitle"></p>
+            </div>
+            <div class="meeting-header-actions">
+                <span class="meeting-live">● LIVE</span>
+                <button id="meeting-leave-btn" class="btn btn-secondary meeting-leave" data-i18n="meeting.leave">Выйти</button>
+            </div>
+        </header>
+        <div id="meeting-grid" class="meeting-grid"></div>
+        <div class="meeting-speech-panel">
+            <div class="meeting-speaker-row">
+                <span id="meeting-speaker-name" class="meeting-speaker-name"></span>
+                <span class="meeting-typing-indicator"><span></span><span></span><span></span></span>
+            </div>
+            <p id="meeting-speech" class="meeting-speech"></p>
+            <div id="meeting-options" class="meeting-options hidden"></div>
+        </div>
+    </div>
+</div>
+
+<div id="gameover-modal" class="modal hidden">
+    <div class="modal-card">
+        <h2 id="gameover-title" data-i18n="gameover.title">Игра окончена</h2>
+        <p id="gameover-reason"></p>
+        <button id="gameover-menu-btn" class="btn btn-primary" data-i18n="gameover.menu">В главное меню</button>
+    </div>
+</div>
+
+<!-- Обучение: подсветка элементов интерфейса -->
+<div id="tutorial-overlay" class="tutorial-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
+    <div id="tutorial-spotlight" class="tutorial-spotlight hidden"></div>
+    <div id="tutorial-card" class="tutorial-card tutorial-card-centered">
+        <span id="tutorial-step-label" class="tutorial-step-label">1 / 7</span>
+        <h3 id="tutorial-title" class="tutorial-title">Обучение</h3>
+        <p id="tutorial-text" class="tutorial-text"></p>
+        <div class="tutorial-actions">
+            <button type="button" id="tutorial-skip" class="btn btn-secondary btn-sm" data-i18n="tutorial.skip">Пропустить обучение</button>
+            <button type="button" id="tutorial-next" class="btn btn-primary btn-sm" data-i18n="tutorial.next">Далее →</button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/i18n.js?v=9"></script>
+<script src="/js/break-scenes.js?v=9"></script>
+<script src="/js/architecture-diagrams.js?v=10"></script>
+<script src="/js/desktop-apps.js?v=14"></script>
+<script src="/js/meetings.js?v=11"></script>
+<script src="/js/office-audio.js?v=9"></script>
+<script src="/js/office-room.js?v=12"></script>
+<script src="/js/tutorial.js?v=9"></script>
+<script src="/js/app.js?v=13"></script>
+</body>
+</html>

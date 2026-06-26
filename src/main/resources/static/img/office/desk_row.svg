@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#bae6fd"/>
+      <stop offset="45%" stop-color="#f1f5f9"/>
+      <stop offset="100%" stop-color="#94a3b8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <text x="960" y="130" fill="#0f172a" font-family="Segoe UI,Arial,sans-serif" font-size="40" font-weight="700" text-anchor="middle">Row 3 - Your desk ahead</text>
+  <rect x="260" y="500" width="1400" height="50" fill="#cbd5e1"/>
+  <rect x="440" y="360" width="1040" height="300" fill="#ffffff" rx="8" stroke="#94a3b8"/>
+  <rect x="680" y="260" width="560" height="340" fill="#374151" rx="10"/>
+  <rect x="710" y="290" width="500" height="270" fill="#111827" rx="6"/>
+  <rect x="870" y="380" width="180" height="70" rx="8" fill="#3b82f6" opacity="0.65"/>
+  <rect x="1120" y="280" width="80" height="80" fill="#fde047"/>
+  <text x="1160" y="330" fill="#78350f" font-family="Segoe UI,Arial,sans-serif" font-size="16" font-weight="700" text-anchor="middle">142</text>
+  <rect x="600" y="660" width="720" height="32" rx="8" fill="#475569"/>
+</svg>
