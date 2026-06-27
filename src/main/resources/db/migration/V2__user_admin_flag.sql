@@ -1,5 +1,0 @@
--- Добавление admin для существующих БД (H2 + PostgreSQL)
-ALTER TABLE users ADD COLUMN IF NOT EXISTS admin BOOLEAN DEFAULT FALSE;
-UPDATE users SET admin = FALSE WHERE admin IS NULL;
-ALTER TABLE users ALTER COLUMN admin SET NOT NULL;
-ALTER TABLE users ALTER COLUMN admin SET DEFAULT FALSE;

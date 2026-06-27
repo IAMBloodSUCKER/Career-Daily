@@ -1,210 +1,118 @@
 # Career Daily
 
-**Browser-based work-life simulator** — learn any profession by living through real workdays: office, team, tasks, corporate tools, and HR.
+Браузерный симулятор рабочих дней в IT-команде: офис, DevOS, задачи, встречи, HR.
 
-[![Java](https://img.shields.io/badge/Java-17+-orange?logo=openjdk)](https://openjdk.org/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-green?logo=springboot)](https://spring.io/projects/spring-boot)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+Стек: Java 17, Spring Boot 3, PostgreSQL / H2, vanilla JS. Maven-артефакт и пакеты Java — `devsimulator` (`com.devsimulator`).
 
-**Русский** · [Quick start](#-быстрый-старт) · [Gameplay](#-как-устроена-игра) · [Roadmap](#-roadmap)
+[Архитектура](ARCHITECTURE.md) · [Товарные знаки](TRADEMARKS.md)
 
 ---
 
-## О проекте
+## Запуск
 
-**Career Daily** — однопользовательская веб-игра в духе «симулятора профессии». Вы создаёте персонажа, выбираете компанию и проходите рабочие дни в имитации реального офиса: чаты, тикеты, встречи, корпоративный портал, зарплата и дисциплина HR.
-
-Игра учит не учебнику с нуля, а **рабочему процессу**: получить задачу → разобраться в контексте → сделать работу в нужных инструментах → согласовать с командой → закрыть день.
-
-```
-Офис (визуальная новелла)  →  DevOS (рабочий стол)  →  Задачи и коммуникации  →  Конец дня
-```
-
-### Масштабирование по профессиям
-
-Движок задуман как **платформа**: общие системы (день, офис, HR, портал, сохранения) + сменные **пакеты профессий** (сценарии, инструменты на рабочем столе, тексты).
-
-| Слой | Что входит |
-|------|------------|
-| **Ядро** | Календарь, офис, DevOS, аккаунт, режимы сложности, HR |
-| **Пакет профессии** | Задачи, приложения, обучение, победа по роли |
-| **Компания / домен** | Команда, продукт, flavor-тексты (fintech, healthcare, govtech…) |
-
-Сейчас доступен **первый контент-пак — software engineering** (чат, тикеты, IDE, Git/PR, мониторинг, инциденты). Дальше — QA, DevOps, аналитик, дизайнер и другие роли без переписывания ядра.
-
-> Внутренний codename Java-пакетов и артефакта Maven — `devsimulator` (`com.devsimulator`).
-
----
-
-## ✨ Особенности
-
-- **Виртуальный рабочий стол DevOS** — окна, панель задач, уведомления, 40+ приложений под рабочий контекст
-- **Офис first-person** — дойти до стола, опоздания, сообщения от руководителя
-- **Корпоративный портал** — компания, команда, зарплата, HR, IT-новости (RSS)
-- **Режимы** — учебный, спокойный, реалистичный, челлендж
-- **RU + EN** в интерфейсе
-- **Сохранения в аккаунте** — Spring Security + PostgreSQL / H2
-- **Vanilla frontend** — без React/Vue; проще добавлять UI под новую профессию
-
----
-
-## 🚀 Быстрый старт
-
-### Docker (рекомендуется)
+### Docker
 
 ```bash
 docker compose up -d --build
 ```
 
-Откройте [http://localhost:8080](http://localhost:8080)
+| Что | URL / порт |
+|-----|------------|
+| Игра | http://localhost:3000 |
+| API (gateway) | http://localhost:8080 |
+| PostgreSQL | `localhost:5433`, БД `devsimulator`, пользователь `devsimulator` |
 
-| Сервис | Порт | Логин по умолчанию |
-|--------|------|-------------------|
-| Приложение | `8080` | `admin` / `admin` |
-| PostgreSQL | `5433` | `devsimulator` / `devsimulator` |
+Админ: `admin` / `admin` (обычная форма входа).
+
+Windows:
 
 ```powershell
-# Windows
 .\scripts\docker-up.ps1
 ```
 
-### Локально (без Docker)
+Если Docker Hub недоступен (`TLS handshake timeout`): VPN, зеркало в Docker Desktop или локальный запуск ниже. Образы можно переопределить через `.env` (см. `.env.example`).
 
-```bash
-mvn spring-boot:run
+### Без Docker
+
+```powershell
+.\scripts\start-local.ps1
 ```
 
-Профиль `dev` — встроенная **H2** (`./data/devsimulator.mv.db`). JDK **17+**, Maven **3.8+**.
+Игра: http://localhost:3000 · JDK 17+ · Node.js · Maven не нужен (`mvnw.cmd`).
 
-После правок в `src/main/resources/static/` пересоберите образ или сделайте **Ctrl+F5** в браузере.
+Остановка: `.\scripts\stop-local.ps1`
 
----
+Данные H2: `./data/auth`, `./data/game`.
 
-## 🎮 Как устроена игра
+Сборка вручную:
 
-### Один игровой день
-
-**1 игровой день = 1 реальный час.** Часы на DevOS идут с 09:00 до 17:00 за этот час. Когда час истёк — завершите день кнопкой справа (или завершите день через отдых «Сон»). Незакрытые задачи переносятся.
-
-**Минимум карьеры — 7 игровых дней (неделя)** во всех режимах; финал карьеры возможен не раньше 7-го дня.
-
-### Первый запуск (5 минут)
-
-1. **Создайте персонажа** — имя, опыт, режим (**«Учебный»** для первого прохождения)
-2. **Выберите компанию / проект** — fintech, e-commerce, govtech, healthcare и др.
-3. **Дойдите до стола** в офисе и включите **DevOS**
-4. Возьмите задачу из чата → выполните в рабочих приложениях → закройте тикет
-5. Вечером — **«Закончить день»** (зарплата, HR, новый день)
-
-### Типичный цикл (текущий пак software engineering)
-
-```
-Коммуникация  →  Рабочий инструмент  →  Согласование  →  Закрытие задачи
+```powershell
+.\mvnw.cmd package -pl auth-service,game-service,gateway -am -DskipTests
 ```
 
-В пакете для разработки ПО это часто: Slack → IDE → Git/PR → JIRA. Для других профессий цепочка будет своей (тест-кейсы, тикеты, дашборды, макеты и т.д.).
-
-### Режимы
-
-| Режим | Для кого |
-|-------|----------|
-| **Учебный** | Первое прохождение: мягкий темп, испытательный срок 3 дня |
-| **Спокойный** | Фокус на задачах, минимум стресса |
-| **Реалистичный** | Инциденты, полная HR-механика |
-| **Челлендж** | Дедлайны, высокий стресс |
-
-### Победа и провал
-
-| Исход | Условие |
-|-------|---------|
-| 🎉 Карьера | Достичь **10 уровня** (не раньше 7-го дня) |
-| 💼 Увольнение | Серия нарушений / низкий рейтинг / дни без результата |
-| 🔥 Выгорание | Стресс 100% или здоровье 0 |
-
 ---
 
-## 🏢 Компании и команды
+## Регистрация
 
-При старте выбирается профиль организации: команда, канал связи, описание продукта. **15 доменов** — от маркетплейса до govtech. Механика дня общая, атмосфера и тексты — уникальные.
+Для пользователей из РФ: обязательный телефон **+7**, опциональный email (`.ru`, Яндекс, Mail.ru). Зарубежные почтовые домены не принимаются.
 
-Подробности в игре: **🏢 Портал** и **Confluence** на рабочем столе.
+Подтверждение номера — SMS-код. В dev-коде (`app.sms.provider=log`) код пишется в лог auth-service и показывается на экране. Для prod — [SMS.ru](https://sms.ru):
 
----
-
-## 🛠 Стек и архитектура
-
-| Слой | Технологии |
-|------|------------|
-| Backend | Java 17, Spring Boot 3, Spring Security, JPA |
-| Database | PostgreSQL 16 (prod) / H2 (dev) |
-| Frontend | Vanilla JS, CSS |
-| Deploy | Docker Compose |
-
-```
-src/main/java/com/devsimulator/
-├── api/                    REST + DTO
-├── model/                  Player, Task, GameMode, ProjectProfile…
-├── service/                InteractiveGameEngine, ScenarioLibrary…
-│   └── news/               IT-лента для портала (RSS)
-└── persistence/            Сохранения в БД
-
-src/main/resources/static/
-├── play.html               Игровые экраны
-└── js/
-    ├── app.js              Game loop, DevOS
-    ├── desktop-apps.js     Приложения рабочего стола
-    ├── office-room.js      Офис
-    └── i18n.js             RU / EN
+```properties
+app.sms.provider=smsru
+app.sms.smsru.api-id=ваш-api-id
 ```
 
-### API (основное)
-
-| Метод | Путь | Назначение |
-|-------|------|------------|
-| `POST` | `/api/game/start` | Начать игру |
-| `GET` | `/api/game/state` | Состояние рабочего места |
-| `GET` | `/api/game/portal/news` | Новости портала |
-| `POST` | `/api/game/end-day` | Конец дня |
-
-Полный список — в [GameController.java](src/main/java/com/devsimulator/api/GameController.java).
+Капча при регистрации: математическая задача (по умолчанию) или Yandex SmartCaptcha — см. `auth-service/.../application.properties`.
 
 ---
 
-## 🗺 Roadmap
+## Структура репозитория
 
-- [ ] **Выбор профессии** при создании персонажа
-- [ ] **Profession packs** — QA, DevOps, Business Analyst, Designer…
-- [ ] Общий контракт пакета: `ScenarioLibrary` + набор приложений DevOS
-- [ ] Отдельные цели победы и HR-правила по роли
-- [ ] Больше корпоративных доменов и внутренних сценариев
-- [ ] Мультиплеер / общий standup (исследование)
+```
+frontend/          UI (nginx в Docker)
+gateway/           Spring Cloud Gateway :8080
+auth-service/      Логин, регистрация, админка :8081
+game-service/      Игровой движок, сохранения :8082
+common/            JWT, общая security
+scripts/           docker-up, start-local, create-db
+```
 
-Идеи и PR приветствуются — особенно новые **пакеты профессий**.
-
----
-
-## 🤝 Contributing
-
-1. Fork → feature branch → PR
-2. UI: `src/main/resources/static/`, проверка в Docker
-3. **Новая профессия** — сценарии (`ScenarioLibrary`), приложения (`desktop-apps.js`), тексты онбординга; ядро по возможности не трогать
+Подробнее — [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
-## ⚖️ Товарные знаки
+## Игровой цикл
 
-**Career Daily** — независимый open-source симулятор. Названия Slack, JIRA, IntelliJ IDEA, Docker, Kubernetes, Grafana и др. принадлежат их правообладателям; проект с ними **не связан**.
+1 игровой день = 1 реальный час (09:00–17:00 на DevOS).
 
-Подробнее: [TRADEMARKS.md](TRADEMARKS.md) · в приложении: `/legal.html`
+```
+Офис → DevOS → задачи и коммуникации → конец дня
+```
+
+Режимы: знакомство (без кода), учебный, спокойный, реалистичный, челлендж.
+
+Минимум карьеры — 7 игровых дней; победа — 10 уровень (не раньше 7-го дня).
 
 ---
 
-## 📄 License
+## API (через gateway)
 
-MIT — свободно для обучения, демо и форков. См. [LICENSE](LICENSE).
+| Метод | Путь | Сервис |
+|-------|------|--------|
+| `POST` | `/api/auth/login` | auth |
+| `POST` | `/api/auth/register` | auth |
+| `POST` | `/api/auth/phone/send-code` | auth |
+| `GET` | `/api/game/state` | game |
+| `POST` | `/api/game/start` | game |
+| `POST` | `/api/game/end-day` | game |
+
+JWT: заголовок `Authorization: Bearer <token>`.
 
 ---
 
-<p align="center">
-  <strong>Career Daily</strong> — один рабочий день за раз. Любая профессия. Реальный ритм.
-</p>
+## Лицензия
+
+MIT — [LICENSE](LICENSE).
+
+Названия Slack, JIRA, IntelliJ IDEA и др. — товарные знаки соответствующих компаний; проект с ними не связан.

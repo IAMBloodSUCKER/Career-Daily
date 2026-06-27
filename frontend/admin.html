@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админка — Java Dev Daily</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="admin-body">
+
+<header class="admin-header">
+    <div>
+        <a href="/" class="auth-back">← Главная</a>
+        <h1>Админка</h1>
+    </div>
+    <div class="admin-header-actions">
+        <a href="/play.html" class="btn btn-primary btn-sm">▶ Играть</a>
+        <button type="button" id="admin-logout" class="btn btn-secondary btn-sm">Выйти</button>
+    </div>
+</header>
+
+<main class="admin-main">
+    <section class="admin-stats" id="admin-stats"></section>
+
+    <section class="admin-panel">
+        <h2>Пользователи</h2>
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Логин</th>
+                        <th>Телефон</th>
+                        <th>Email</th>
+                        <th>Имя</th>
+                        <th>Сохранение</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="admin-users"></tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<script src="/js/config.js?v=1"></script>
+<script src="/js/admin.js?v=2"></script>
+</body>
+</html>

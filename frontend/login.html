@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход — Java Dev Daily</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="auth-body">
+
+<div class="auth-card">
+    <a href="/" class="auth-back">← На главную</a>
+    <h1>Java Dev Daily</h1>
+    <p class="auth-subtitle">Войдите, чтобы играть</p>
+
+    <div class="auth-tabs">
+        <button type="button" id="tab-login" class="auth-tab active">Вход</button>
+        <button type="button" id="tab-register" class="auth-tab">Регистрация</button>
+    </div>
+
+    <form id="login-form" class="auth-form">
+        <label class="field-label">Телефон +7, логин или email (.ru)</label>
+        <input id="login-input" type="text" class="text-input" autocomplete="username" required
+               placeholder="admin или +7 999…">
+
+        <label class="field-label">Пароль</label>
+        <input id="login-password" type="password" class="text-input" autocomplete="current-password" required minlength="5">
+
+        <div id="auth-error" class="char-errors hidden"></div>
+        <button type="submit" class="btn btn-primary auth-submit">Войти</button>
+    </form>
+
+    <form id="register-form" class="auth-form hidden">
+        <p class="auth-hint">Регистрация для пользователей из РФ: основной идентификатор — номер телефона +7. Зарубежная почта (Gmail, Outlook и т.п.) не принимается.</p>
+
+        <label class="field-label">Телефон +7 <span class="field-required">*</span></label>
+        <div class="phone-verify-row">
+            <input id="reg-phone" type="tel" class="text-input phone-verify-input" autocomplete="tel" required
+                   placeholder="+7 999 123-45-67" inputmode="tel">
+            <button type="button" id="reg-send-sms" class="btn btn-secondary phone-send-btn">Получить код</button>
+        </div>
+        <p id="reg-sms-hint" class="auth-hint hidden"></p>
+
+        <div id="reg-sms-wrap" class="auth-sms hidden">
+            <label class="field-label">Код из SMS <span class="field-required">*</span></label>
+            <input id="reg-sms-code" type="text" class="text-input" inputmode="numeric" autocomplete="one-time-code"
+                   maxlength="8" placeholder="6 цифр">
+        </div>
+
+        <label class="field-label">Email <span class="field-optional">(необязательно, только .ru / Яндекс / Mail.ru)</span></label>
+        <input id="reg-email" type="email" class="text-input" autocomplete="email"
+               placeholder="name@yandex.ru">
+
+        <label class="field-label">Логин</label>
+        <input id="reg-username" type="text" class="text-input" autocomplete="username" required minlength="3" maxlength="64">
+
+        <label class="field-label">Имя в игре</label>
+        <input id="reg-display" type="text" class="text-input" required minlength="2" maxlength="128">
+
+        <label class="field-label">Пароль</label>
+        <input id="reg-password" type="password" class="text-input" autocomplete="new-password" required minlength="6">
+
+        <div id="reg-captcha-wrap" class="auth-captcha hidden"></div>
+
+        <label class="auth-consent">
+            <input id="reg-consent" type="checkbox" required>
+            <span>Я согласен(на) на <a href="/legal.html#privacy" target="_blank" rel="noopener">обработку персональных данных</a> (152-ФЗ)</span>
+        </label>
+
+        <div id="reg-error" class="char-errors hidden"></div>
+        <button type="submit" class="btn btn-primary auth-submit">Зарегистрироваться</button>
+    </form>
+
+    <p class="trademark-notice trademark-notice-compact">
+        Независимый симулятор · названия продуктов — товарные знаки их владельцев ·
+        <a href="/legal.html">Legal</a>
+    </p>
+</div>
+
+<script src="/js/config.js?v=1"></script>
+<script src="/js/auth.js?v=7"></script>
+</body>
+</html>

@@ -1,6 +1,7 @@
+# Образы можно переопределить через .env (см. .env.example) — полезно, если Docker Hub недоступен.
 services:
   postgres:
-    image: postgres:16-alpine
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
     container_name: career-daily-db
     environment:
       POSTGRES_DB: devsimulator
@@ -9,7 +10,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - devsimulator_pgdata:/var/lib/postgresql/data
+      - career_daily_pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U devsimulator -d devsimulator"]
       interval: 5s
@@ -17,25 +18,86 @@ services:
       retries: 10
     restart: unless-stopped
 
-  app:
-    build: .
-    image: career-daily-app:latest
-    container_name: career-daily-app
-    ports:
-      - "8080:8080"
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+      args:
+        MAVEN_IMAGE: ${MAVEN_IMAGE:-maven:3.9-eclipse-temurin-17-alpine}
+        JRE_IMAGE: ${JRE_IMAGE:-eclipse-temurin:17-jre-alpine}
+    image: career-daily-auth:latest
+    container_name: career-daily-auth
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/devsimulator
       SPRING_DATASOURCE_USERNAME: devsimulator
       SPRING_DATASOURCE_PASSWORD: devsimulator
+      APP_JWT_SECRET: career-daily-docker-jwt-secret-key-min-32-chars
+      GAME_SERVICE_URL: http://game-service:8082
+      INTERNAL_API_TOKEN: docker-internal-token
       APP_ADMIN_BOOTSTRAP_ENABLED: "true"
-      APP_ADMIN_DEV_LOGIN_ENABLED: "true"
       APP_ADMIN_USERNAME: admin
       APP_ADMIN_PASSWORD: admin
+      # SMS.ru для prod: app.sms.provider=smsru + ключ
+      APP_SMS_PROVIDER: ${APP_SMS_PROVIDER:-log}
+      SMSRU_API_ID: ${SMSRU_API_ID:-}
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
 
+  game-service:
+    build:
+      context: .
+      dockerfile: game-service/Dockerfile
+      args:
+        MAVEN_IMAGE: ${MAVEN_IMAGE:-maven:3.9-eclipse-temurin-17-alpine}
+        JRE_IMAGE: ${JRE_IMAGE:-eclipse-temurin:17-jre-alpine}
+    image: career-daily-game:latest
+    container_name: career-daily-game
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/devsimulator
+      SPRING_DATASOURCE_USERNAME: devsimulator
+      SPRING_DATASOURCE_PASSWORD: devsimulator
+      APP_JWT_SECRET: career-daily-docker-jwt-secret-key-min-32-chars
+      INTERNAL_API_TOKEN: docker-internal-token
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+      args:
+        MAVEN_IMAGE: ${MAVEN_IMAGE:-maven:3.9-eclipse-temurin-17-alpine}
+        JRE_IMAGE: ${JRE_IMAGE:-eclipse-temurin:17-jre-alpine}
+    image: career-daily-gateway:latest
+    container_name: career-daily-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:8081
+      GAME_SERVICE_URL: http://game-service:8082
+    depends_on:
+      - auth-service
+      - game-service
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NGINX_IMAGE: ${NGINX_IMAGE:-nginx:alpine}
+    image: career-daily-frontend:latest
+    container_name: career-daily-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - gateway
+    restart: unless-stopped
+
 volumes:
-  devsimulator_pgdata:
+  career_daily_pgdata:
