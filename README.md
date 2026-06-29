@@ -54,14 +54,7 @@ Windows:
 
 ## Регистрация
 
-Для пользователей из РФ: обязательный телефон **+7**, опциональный email (`.ru`, Яндекс, Mail.ru). Зарубежные почтовые домены не принимаются.
-
-Подтверждение номера — SMS-код. В dev-коде (`app.sms.provider=log`) код пишется в лог auth-service и показывается на экране. Для prod — [SMS.ru](https://sms.ru):
-
-```properties
-app.sms.provider=smsru
-app.sms.smsru.api-id=ваш-api-id
-```
+Логин, пароль и имя в игре. Телефон и email **не требуются**. Пароль **не восстанавливается** — при утере создайте новый аккаунт.
 
 Капча при регистрации: математическая задача (по умолчанию) или Yandex SmartCaptcha — см. `auth-service/.../application.properties`.
 
@@ -102,7 +95,7 @@ scripts/           docker-up, start-local, create-db
 |-------|------|--------|
 | `POST` | `/api/auth/login` | auth |
 | `POST` | `/api/auth/register` | auth |
-| `POST` | `/api/auth/phone/send-code` | auth |
+| `DELETE` | `/api/auth/account` | auth |
 | `GET` | `/api/game/state` | game |
 | `POST` | `/api/game/start` | game |
 | `POST` | `/api/game/end-day` | game |

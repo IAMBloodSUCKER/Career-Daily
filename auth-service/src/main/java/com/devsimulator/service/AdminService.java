@@ -61,8 +61,6 @@ public class AdminService {
         return new AdminUserDto(
                 user.getId(),
                 user.getUsername(),
-                user.getEmail(),
-                user.getPhone(),
                 user.getDisplayName(),
                 user.isAdmin(),
                 summary != null,

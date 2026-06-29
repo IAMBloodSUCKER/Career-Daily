@@ -19,65 +19,59 @@
     </div>
 
     <form id="login-form" class="auth-form">
-        <label class="field-label">Телефон +7, логин или email (.ru)</label>
+        <label class="field-label">Логин</label>
         <input id="login-input" type="text" class="text-input" autocomplete="username" required
-               placeholder="admin или +7 999…">
+               placeholder="admin">
 
         <label class="field-label">Пароль</label>
         <input id="login-password" type="password" class="text-input" autocomplete="current-password" required minlength="5">
+        <p class="auth-hint auth-hint-muted">Забыли пароль? Восстановление недоступно — зарегистрируйте новый аккаунт.</p>
 
         <div id="auth-error" class="char-errors hidden"></div>
         <button type="submit" class="btn btn-primary auth-submit">Войти</button>
     </form>
 
     <form id="register-form" class="auth-form hidden">
-        <p class="auth-hint">Регистрация для пользователей из РФ: основной идентификатор — номер телефона +7. Зарубежная почта (Gmail, Outlook и т.п.) не принимается.</p>
+        <p class="auth-hint">Регистрация по логину и паролю. Телефон и email не требуются. Сохраните пароль — восстановить его нельзя.</p>
 
-        <label class="field-label">Телефон +7 <span class="field-required">*</span></label>
-        <div class="phone-verify-row">
-            <input id="reg-phone" type="tel" class="text-input phone-verify-input" autocomplete="tel" required
-                   placeholder="+7 999 123-45-67" inputmode="tel">
-            <button type="button" id="reg-send-sms" class="btn btn-secondary phone-send-btn">Получить код</button>
-        </div>
-        <p id="reg-sms-hint" class="auth-hint hidden"></p>
+        <div id="reg-error" class="char-errors hidden"></div>
 
-        <div id="reg-sms-wrap" class="auth-sms hidden">
-            <label class="field-label">Код из SMS <span class="field-required">*</span></label>
-            <input id="reg-sms-code" type="text" class="text-input" inputmode="numeric" autocomplete="one-time-code"
-                   maxlength="8" placeholder="6 цифр">
-        </div>
+        <label class="field-label">Логин <span class="field-required">*</span></label>
+        <input id="reg-username" type="text" class="text-input" autocomplete="username" required minlength="3" maxlength="64"
+               placeholder="alex_dev">
 
-        <label class="field-label">Email <span class="field-optional">(необязательно, только .ru / Яндекс / Mail.ru)</span></label>
-        <input id="reg-email" type="email" class="text-input" autocomplete="email"
-               placeholder="name@yandex.ru">
+        <label class="field-label">Имя в игре <span class="field-required">*</span></label>
+        <input id="reg-display" type="text" class="text-input" required minlength="2" maxlength="128"
+               placeholder="Алексей">
 
-        <label class="field-label">Логин</label>
-        <input id="reg-username" type="text" class="text-input" autocomplete="username" required minlength="3" maxlength="64">
-
-        <label class="field-label">Имя в игре</label>
-        <input id="reg-display" type="text" class="text-input" required minlength="2" maxlength="128">
-
-        <label class="field-label">Пароль</label>
+        <label class="field-label">Пароль <span class="field-required">*</span></label>
         <input id="reg-password" type="password" class="text-input" autocomplete="new-password" required minlength="6">
 
         <div id="reg-captcha-wrap" class="auth-captcha hidden"></div>
 
         <label class="auth-consent">
-            <input id="reg-consent" type="checkbox" required>
-            <span>Я согласен(на) на <a href="/legal.html#privacy" target="_blank" rel="noopener">обработку персональных данных</a> (152-ФЗ)</span>
+            <input id="reg-terms" type="checkbox" required>
+            <span>Я принимаю <a href="/legal.html#terms" target="_blank" rel="noopener">Пользовательское соглашение</a> и подтверждаю, что мне исполнилось 18 лет</span>
         </label>
 
-        <div id="reg-error" class="char-errors hidden"></div>
+        <label class="auth-consent">
+            <input id="reg-consent" type="checkbox" required>
+            <span>Я даю <a href="/legal.html#consent" target="_blank" rel="noopener">согласие на обработку персональных данных</a> и ознакомлен(а) с <a href="/legal.html#privacy" target="_blank" rel="noopener">Политикой конфиденциальности</a></span>
+        </label>
+
         <button type="submit" class="btn btn-primary auth-submit">Зарегистрироваться</button>
     </form>
 
     <p class="trademark-notice trademark-notice-compact">
-        Независимый симулятор · названия продуктов — товарные знаки их владельцев ·
-        <a href="/legal.html">Legal</a>
+        Независимый симулятор ·
+        <a href="/legal.html#privacy">Конфиденциальность</a> ·
+        <a href="/legal.html#terms">Соглашение</a> ·
+        <a href="/legal.html#trademarks">Legal</a>
     </p>
 </div>
 
 <script src="/js/config.js?v=1"></script>
-<script src="/js/auth.js?v=7"></script>
+<script src="/js/captcha-widgets.js?v=1"></script>
+<script src="/js/auth.js?v=13"></script>
 </body>
 </html>

@@ -1,85 +1,162 @@
 package com.devsimulator.service;
 
+
+
 import com.devsimulator.api.dto.AuthUserDto;
+
 import com.devsimulator.api.dto.LoginRequest;
+
 import com.devsimulator.api.dto.RegisterRequest;
+
 import com.devsimulator.persistence.entity.AppUser;
+
 import com.devsimulator.persistence.repository.AppUserRepository;
+
 import com.devsimulator.security.AppUserPrincipal;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
+
 import org.springframework.stereotype.Service;
+
 import org.springframework.transaction.annotation.Transactional;
 
+
+
 @Service
+
 public class AuthService {
 
+
+
     private final AppUserRepository appUserRepository;
+
     private final PasswordEncoder passwordEncoder;
 
-    public AuthService(AppUserRepository appUserRepository, PasswordEncoder passwordEncoder) {
+    private final ConsentService consentService;
+
+
+
+    public AuthService(AppUserRepository appUserRepository,
+
+                       PasswordEncoder passwordEncoder,
+
+                       ConsentService consentService) {
+
         this.appUserRepository = appUserRepository;
+
         this.passwordEncoder = passwordEncoder;
+
+        this.consentService = consentService;
+
     }
+
+
 
     @Transactional
-    public AuthUserDto register(RegisterRequest request) {
+
+    public AuthUserDto register(RegisterRequest request, String ipAddress, String userAgent) {
+
         if (!Boolean.TRUE.equals(request.personalDataConsent())) {
+
             throw new IllegalArgumentException("Необходимо согласие на обработку персональных данных (152-ФЗ)");
+
         }
 
-        String phone = RussianRegistrationPolicy.normalizePhone(request.phone());
-        String email = RussianRegistrationPolicy.normalizeEmail(request.email());
-        RussianRegistrationPolicy.requireRussianEmail(email);
+        if (!Boolean.TRUE.equals(request.termsAccepted())) {
 
-        if (appUserRepository.existsByPhone(phone)) {
-            throw new IllegalArgumentException("Этот номер телефона уже зарегистрирован");
+            throw new IllegalArgumentException("Необходимо принять пользовательское соглашение");
+
         }
-        if (email != null && appUserRepository.existsByEmailIgnoreCase(email)) {
-            throw new IllegalArgumentException("Email уже зарегистрирован");
-        }
-        if (appUserRepository.existsByUsernameIgnoreCase(request.username())) {
+
+
+
+        String username = request.username().trim();
+
+        if (appUserRepository.existsByUsernameIgnoreCase(username)) {
+
             throw new IllegalArgumentException("Имя пользователя занято");
+
         }
+
+
 
         AppUser user = new AppUser(
-                email,
-                phone,
-                request.username().trim(),
+
+                null,
+
+                null,
+
+                username,
+
                 passwordEncoder.encode(request.password()),
+
                 request.displayName().trim(),
+
                 false
+
         );
+
         user = appUserRepository.save(user);
+
+        consentService.recordRegistrationConsent(user, ipAddress, userAgent);
+
+        user = appUserRepository.save(user);
+
         return toDto(user);
+
     }
+
+
 
     public AuthUserDto toDto(AppUser user) {
+
         return new AuthUserDto(
+
                 user.getId(),
+
                 user.getUsername(),
+
                 user.getEmail(),
+
                 user.getPhone(),
+
                 user.getDisplayName(),
+
                 user.isAdmin()
+
         );
+
     }
+
+
 
     public AuthUserDto toDto(AppUserPrincipal principal) {
+
         return new AuthUserDto(
+
                 principal.getId(),
+
                 principal.getUsername(),
+
                 principal.getEmail(),
+
                 principal.getPhone(),
+
                 principal.getDisplayName(),
+
                 principal.isAdmin()
+
         );
+
     }
 
+
+
     public static String normalizeLogin(LoginRequest request) {
-        String login = request.login().trim();
-        if (RussianRegistrationPolicy.looksLikePhone(login)) {
-            return RussianRegistrationPolicy.normalizePhone(login);
-        }
-        return login;
+
+        return request.login().trim();
+
     }
+
 }
+

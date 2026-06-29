@@ -116,32 +116,7 @@ public final class ScenarioLibrary {
                 "msg-welcome-anna", "anna",
                 mention(playerName) + " " + lead.greeting(),
                 false, null));
-        messages.add(new com.devsimulator.model.ChatMessage(
-                "msg-welcome-channel", TeamGenerator.facilitatorId(profile),
-                "Канал команды: " + profile.slackChannel() + ". "
-                        + "Продукт: " + profile.productName() + ". "
-                        + profile.introSteps().get(1),
-                false, null));
-        if (mode != GameMode.LEARNING && mode != GameMode.RELAXED && mode != GameMode.EXPLORER) {
-            for (var member : profile.team()) {
-                if (!member.id().equals("anna")) {
-                    if ("alex".equals(member.id()) && hasCodeReviewTask(tasks)) {
-                        continue;
-                    }
-                    messages.add(new com.devsimulator.model.ChatMessage(
-                            "msg-welcome-" + member.id(), member.id(),
-                            member.greeting(),
-                            false, null));
-                }
-            }
-        }
         return messages;
-    }
-
-    private static boolean hasCodeReviewTask(List<InteractiveTask> tasks) {
-        return tasks.stream().anyMatch(t -> t.getScenarioTag() == ScenarioTag.CODE_REVIEW_METHOD
-                || t.getScenarioTag() == ScenarioTag.CODE_REVIEW_STYLE
-                || t.getScenarioTag() == ScenarioTag.CODE_REVIEW_SECURITY);
     }
 
     public static com.devsimulator.model.ChatMessage pr301FollowUpMessage(
@@ -181,6 +156,7 @@ public final class ScenarioLibrary {
         List<com.devsimulator.model.ChatMessage> messages = new ArrayList<>();
         if (includeWelcome && profile != null) {
             messages.addAll(welcomeMessages(profile, playerName, tasks, mode));
+            messages.addAll(TeamChannelLibrary.bootstrapFeed(profile, day, mode));
         }
         messages.addAll(taskMessages(tasks, profile, playerName, experienceYears, mode, day));
         return messages;
@@ -216,7 +192,7 @@ public final class ScenarioLibrary {
             messages.add(new com.devsimulator.model.ChatMessage(
                     "msg-igor-standup", facilitator,
                     standupReminder(experienceYears),
-                    false, null));
+                    false, null, true));
         }
         return messages;
     }
@@ -266,17 +242,17 @@ public final class ScenarioLibrary {
                         incMessageId(task.getTicketId()), "dmitry",
                         "🚨 @channel SEV-1 " + task.getTicketId() + "! " + task.getTitle()
                                 + " PagerDuty эскалировал. Логи в #war-room",
-                        false, task.getId()));
+                        false, task.getId(), true));
                 case MEMORY_LEAK -> messages.add(new com.devsimulator.model.ChatMessage(
                         oomMessageId(task.getTicketId()), "dmitry",
-                        "🔥 " + task.getTicketId() + ": " + task.getTitle()
+                        "🔥 @channel " + task.getTicketId() + ": " + task.getTitle()
                                 + " Heap monotonic ↑ — похоже на leak. Grafana JVM Memory → heap dump!",
-                        false, task.getId()));
+                        false, task.getId(), true));
                 case KAFKA_CONSUMER -> messages.add(new com.devsimulator.model.ChatMessage(
                         kafkaMessageId(task.getTicketId()), "dmitry",
-                        "📨 " + task.getTicketId() + ": " + task.getTitle()
+                        "📨 @channel " + task.getTicketId() + ": " + task.getTitle()
                                 + " Смотрите Grafana + Kibana.",
-                        false, task.getId()));
+                        false, task.getId(), true));
                 case METRICS_SLA, SQL_SLOW_QUERY -> messages.add(new com.devsimulator.model.ChatMessage(
                         obsMessageId(task.getTicketId()), "igor",
                         at + " " + task.getTicketId() + " — " + task.getTitle()

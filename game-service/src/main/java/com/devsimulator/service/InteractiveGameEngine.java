@@ -502,7 +502,8 @@ public class InteractiveGameEngine {
         return currentMinute;
     }
 
-    public ActionResult arriveAtDesk(String arrivalType, List<String> roomActions) {
+    public ActionResult arriveAtDesk(String arrivalType, List<String> roomActions,
+                                     Integer commuteMinutesLate, String excuse) {
         if (atDesk) {
             return ActionResult.fail("Вы уже за рабочим столом");
         }
@@ -517,25 +518,27 @@ public class InteractiveGameEngine {
         applyRoomActions(roomActions);
 
         switch (type) {
-            case "LATE" -> applyLateArrival(60, 1, 15, 2, 1,
-                    String.format("10:00. Вы опоздали на работу. Daily в %s — успейте подключиться.",
-                            GameBalance.standupStartTimeLabel()),
-                    "Опоздание на работу");
             case "OVERSLEPT" -> applyLateArrival(120, 2, 30, 3, 2,
                     GameBalance.standupStartTimeLabel() + ". Вы проснулись слишком поздно. Team Lead в ярости.",
                     "Грубое опоздание — проспали до " + GameBalance.standupStartTimeLabel());
-            case "ON_TIME" -> {
-                startDayClock();
-                lastMessage = String.format("%02d:00. Вы за рабочим столом. Slack уже мигает.",
-                        currentHour);
+            case "LATE" -> {
+                if (commuteMinutesLate != null) {
+                    applyCommuteArrival(commuteMinutesLate, excuse);
+                } else {
+                    applyLateArrival(60, 1, 15, 2, 1,
+                            String.format("10:00. Вы опоздали на работу. Daily в %s — успейте подключиться.",
+                                    GameBalance.standupStartTimeLabel()),
+                            "Опоздание на работу");
+                }
             }
-            default -> {
-                startDayClock();
-                lastMessage = String.format("%02d:00. Вы за рабочим столом.", currentHour);
-            }
+            default -> applyCommuteArrival(
+                    commuteMinutesLate != null ? Math.max(0, commuteMinutesLate) : 0, excuse);
         }
 
-        scheduleStandupForToday(type);
+        String scheduleType = lateMinutes >= GameBalance.minutesUntilStandup(DAY_START_HOUR, 0)
+                ? "OVERSLEPT"
+                : lateMinutes > 30 ? "LATE" : "ON_TIME";
+        scheduleStandupForToday(scheduleType);
 
         checkGameState();
         return ActionResult.ok(lastMessage);
@@ -674,6 +677,89 @@ public class InteractiveGameEngine {
     private void failStandupObjective() {
         player.addColleagueRating(-1);
         player.addStress(10);
+    }
+
+    private void applyCommuteArrival(int totalMinutesLate, String excuse) {
+        lateMinutes = Math.max(0, totalMinutesLate);
+        startDayClock();
+
+        if (lateMinutes > 0) {
+            int totalFromMidnight = DAY_START_HOUR * 60 + lateMinutes;
+            currentHour = totalFromMidnight / 60;
+            currentMinute = totalFromMidnight % 60;
+            long offset = (long) lateMinutes * GameBalance.REAL_DAY_DURATION_MS
+                    / (WORK_DAY_HOURS * 60L);
+            dayStartedAtMillis = System.currentTimeMillis() - offset;
+            syncDayClockFromRealTime();
+        }
+
+        String excusePart = formatExcuseSuffix(excuse);
+        int untilStandup = GameBalance.minutesUntilStandup(currentHour, currentMinute);
+
+        if (lateMinutes <= 10) {
+            lastMessage = String.format("%02d:%02d. Вы за рабочим столом.%s Slack уже мигает.",
+                    currentHour, currentMinute, excusePart);
+            return;
+        }
+
+        if (lateMinutes <= 30) {
+            player.addStress(4);
+            lastMessage = String.format("%02d:%02d. Задержались на %d мин — к daily в %s ещё %d мин.%s",
+                    currentHour, currentMinute, lateMinutes,
+                    GameBalance.standupStartTimeLabel(), Math.max(0, untilStandup), excusePart);
+            return;
+        }
+
+        player.addStress(10);
+        player.addColleagueRating(-1);
+
+        if (untilStandup <= 0) {
+            int issued = issueLateWarnings(2,
+                    "Грубое опоздание — после " + GameBalance.standupStartTimeLabel() + excusePart);
+            lastMessage = String.format("%02d:%02d. Daily уже идёт — вы опоздали на %d мин.%s%s",
+                    currentHour, currentMinute, lateMinutes, excusePart, warningSuffix(issued));
+            return;
+        }
+
+        int issued = issueLateWarnings(1, "Опоздание на работу" + excusePart);
+        lastMessage = String.format("%02d:%02d. Опоздание на %d мин. Daily в %s — через %d мин.%s%s",
+                currentHour, currentMinute, lateMinutes,
+                GameBalance.standupStartTimeLabel(), untilStandup, excusePart, warningSuffix(issued));
+    }
+
+    private String formatExcuseSuffix(String excuse) {
+        if (excuse == null || excuse.isBlank()) {
+            return "";
+        }
+        String trimmed = excuse.trim();
+        if (trimmed.length() > 72) {
+            trimmed = trimmed.substring(0, 69) + "…";
+        }
+        return " Причина: " + trimmed + ".";
+    }
+
+    private int issueLateWarnings(int count, String reason) {
+        int effective = count;
+        if (mode.isSoftHr() && player.getDay() < GameBalance.MIN_DAY_BEFORE_TERMINATION) {
+            effective = 0;
+        }
+        int issued = 0;
+        for (int i = 0; i < effective; i++) {
+            if (addWarningIfAllowed(reason)) {
+                issued++;
+            }
+        }
+        return issued;
+    }
+
+    private String warningSuffix(int issued) {
+        if (issued > 0) {
+            return " (⚠ предупреждение" + (issued > 1 ? " x" + issued : "") + ")";
+        }
+        if (mode.isSoftHr() && player.getDay() < GameBalance.MIN_DAY_BEFORE_TERMINATION) {
+            return " (испытательный срок — без предупреждения)";
+        }
+        return "";
     }
 
     private void applyLateArrival(int minutesLate, int hoursLost, int stress, int ratingLoss,
@@ -878,7 +964,8 @@ public class InteractiveGameEngine {
         }
         int readCount = 0;
         for (ChatMessage msg : messages) {
-            if (!contactId.equals(msg.getContactId()) || msg.isFromPlayer() || msg.isRead()) {
+            if (!contactId.equals(msg.getContactId()) || msg.isFromPlayer() || msg.isRead()
+                    || msg.isChannel()) {
                 continue;
             }
             msg.markRead();
@@ -910,7 +997,7 @@ public class InteractiveGameEngine {
         }
         int readCount = 0;
         for (ChatMessage msg : messages) {
-            if (msg.isFromPlayer() || msg.isRead()) {
+            if (msg.isFromPlayer() || msg.isRead() || !msg.isChannel()) {
                 continue;
             }
             msg.markRead();
@@ -2391,7 +2478,8 @@ public class InteractiveGameEngine {
                 message.isFromPlayer(),
                 message.getTaskId(),
                 message.isRead(),
-                message.getTimestamp()
+                message.getTimestamp(),
+                message.isChannel()
         );
     }
 
@@ -2403,6 +2491,7 @@ public class InteractiveGameEngine {
                 snapshot.fromPlayer(),
                 snapshot.taskId(),
                 snapshot.read(),
+                snapshot.channel(),
                 snapshot.timestamp()
         );
     }

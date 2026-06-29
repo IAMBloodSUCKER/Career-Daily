@@ -237,6 +237,93 @@ const OfficeAudio = (() => {
     }
 
     let elevatorHumNodes = [];
+    let elevatorMuzakSource = null;
+    let elevatorMuzakGain = null;
+    let elevatorMuzakBuffer = null;
+    let elevatorMuzakLoading = null;
+
+    const ELEVATOR_MUZAK_URL = '/audio/elevator-muzak.mp3';
+
+    async function loadElevatorMuzakBuffer() {
+        if (elevatorMuzakBuffer) return elevatorMuzakBuffer;
+        if (elevatorMuzakLoading) return elevatorMuzakLoading;
+        elevatorMuzakLoading = (async () => {
+            const c = ensureCtx();
+            const res = await fetch(ELEVATOR_MUZAK_URL);
+            if (!res.ok) throw new Error('elevator muzak load failed');
+            const arr = await res.arrayBuffer();
+            elevatorMuzakBuffer = await c.decodeAudioData(arr);
+            return elevatorMuzakBuffer;
+        })();
+        return elevatorMuzakLoading;
+    }
+
+    function stopElevatorMuzak() {
+        if (elevatorMuzakSource) {
+            try {
+                const c = ensureCtx();
+                const t = c.currentTime;
+                if (elevatorMuzakGain) {
+                    elevatorMuzakGain.gain.cancelScheduledValues(t);
+                    elevatorMuzakGain.gain.setValueAtTime(elevatorMuzakGain.gain.value, t);
+                    elevatorMuzakGain.gain.linearRampToValueAtTime(0, t + 0.35);
+                }
+                elevatorMuzakSource.stop(t + 0.4);
+            } catch (_) { /* noop */ }
+        }
+        elevatorMuzakSource = null;
+        elevatorMuzakGain = null;
+    }
+
+    async function playElevatorMuzak() {
+        if (!canPlay()) return;
+        stopElevatorMuzak();
+        try {
+            const c = ensureCtx();
+            const buffer = await loadElevatorMuzakBuffer();
+            const t = c.currentTime;
+
+            const source = c.createBufferSource();
+            source.buffer = buffer;
+            source.loop = true;
+            source.playbackRate.value = 0.9;
+
+            const hp = c.createBiquadFilter();
+            hp.type = 'highpass';
+            hp.frequency.value = 220;
+
+            const lp = c.createBiquadFilter();
+            lp.type = 'lowpass';
+            lp.frequency.value = 1900;
+            lp.Q.value = 0.55;
+
+            const peak = c.createBiquadFilter();
+            peak.type = 'peaking';
+            peak.frequency.value = 950;
+            peak.Q.value = 1.1;
+            peak.gain.value = -4;
+
+            const g = c.createGain();
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(0.055, t + 1.2);
+
+            source.connect(hp);
+            hp.connect(lp);
+            lp.connect(peak);
+            peak.connect(g);
+            g.connect(ambientBus || master);
+            source.start(t);
+
+            elevatorMuzakSource = source;
+            elevatorMuzakGain = g;
+        } catch (_) { /* файл недоступен — только гул */ }
+    }
+
+    function playElevatorButtonPress() {
+        if (!canPlay()) return;
+        tone(880, 0.08, 0.04, 'square');
+        schedule(() => tone(1174.7, 0.12, 0.028, 'sine'), 40);
+    }
 
     function playElevatorRideHum() {
         if (!canPlay()) return;
@@ -249,15 +336,17 @@ const OfficeAudio = (() => {
             osc.type = i ? 'triangle' : 'sine';
             osc.frequency.value = freq;
             g.gain.setValueAtTime(0, t);
-            g.gain.linearRampToValueAtTime(i ? 0.018 : 0.09, t + 0.25);
+            g.gain.linearRampToValueAtTime(i ? 0.009 : 0.042, t + 0.25);
             osc.connect(g);
             g.connect(ambientBus || master);
             osc.start(t);
             elevatorHumNodes.push({ osc, g });
         });
+        playElevatorMuzak();
     }
 
     function stopElevatorRideHum() {
+        stopElevatorMuzak();
         elevatorHumNodes.forEach(({ osc, g }) => {
             try {
                 const c = ensureCtx();
@@ -548,6 +637,10 @@ const OfficeAudio = (() => {
 
         playElevatorFloorDing(floor) {
             playElevatorFloorDing(floor);
+        },
+
+        playElevatorButtonPress() {
+            playElevatorButtonPress();
         },
 
         playElevatorRideHum() {

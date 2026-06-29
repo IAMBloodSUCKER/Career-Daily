@@ -3,24 +3,25 @@ package com.devsimulator.api;
 import com.devsimulator.api.dto.AuthResponseDto;
 import com.devsimulator.api.dto.AuthUserDto;
 import com.devsimulator.api.dto.CaptchaConfigDto;
+import com.devsimulator.api.dto.DeleteAccountRequest;
+import com.devsimulator.api.dto.LegalConfigDto;
 import com.devsimulator.api.dto.LoginRequest;
 import com.devsimulator.api.dto.RegisterRequest;
 import com.devsimulator.common.security.JwtService;
 import com.devsimulator.persistence.repository.AppUserRepository;
 import com.devsimulator.security.AppUserPrincipal;
 import com.devsimulator.security.SecurityUtils;
+import com.devsimulator.service.AccountService;
 import com.devsimulator.service.AuthService;
 import com.devsimulator.service.CaptchaService;
-import com.devsimulator.api.dto.SendPhoneCodeRequest;
-import com.devsimulator.api.dto.SendPhoneCodeResponse;
-import com.devsimulator.api.dto.SmsConfigDto;
-import com.devsimulator.service.PhoneVerificationService;
+import com.devsimulator.service.LegalService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -32,21 +33,24 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final AccountService accountService;
+    private final LegalService legalService;
     private final CaptchaService captchaService;
-    private final PhoneVerificationService phoneVerificationService;
     private final AuthenticationManager authenticationManager;
     private final AppUserRepository appUserRepository;
     private final JwtService jwtService;
 
     public AuthController(AuthService authService,
+                          AccountService accountService,
+                          LegalService legalService,
                           CaptchaService captchaService,
-                          PhoneVerificationService phoneVerificationService,
                           AuthenticationManager authenticationManager,
                           AppUserRepository appUserRepository,
                           JwtService jwtService) {
         this.authService = authService;
+        this.accountService = accountService;
+        this.legalService = legalService;
         this.captchaService = captchaService;
-        this.phoneVerificationService = phoneVerificationService;
         this.authenticationManager = authenticationManager;
         this.appUserRepository = appUserRepository;
         this.jwtService = jwtService;
@@ -57,23 +61,16 @@ public class AuthController {
         return captchaService.configForRegistration();
     }
 
-    @GetMapping("/sms-config")
-    public SmsConfigDto smsConfig() {
-        return new SmsConfigDto(phoneVerificationService.isRequired());
-    }
-
-    @PostMapping("/phone/send-code")
-    public SendPhoneCodeResponse sendPhoneCode(@Valid @RequestBody SendPhoneCodeRequest request) {
-        return phoneVerificationService.sendCode(request.phone());
+    @GetMapping("/legal-config")
+    public LegalConfigDto legalConfig() {
+        return legalService.publicConfig();
     }
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponseDto> register(@Valid @RequestBody RegisterRequest request,
                                                       HttpServletRequest httpRequest) {
         captchaService.verifyRegistration(request, httpRequest.getRemoteAddr());
-        phoneVerificationService.verifyForRegistration(
-                request.smsVerificationId(), request.phone(), request.smsCode());
-        authService.register(request);
+        authService.register(request, httpRequest.getRemoteAddr(), httpRequest.getHeader("User-Agent"));
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.username().trim(), request.password())
         );
@@ -95,6 +92,12 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<Void> logout() {
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/account")
+    public ResponseEntity<Void> deleteAccount(@Valid @RequestBody DeleteAccountRequest request) {
+        accountService.deleteOwnAccount(request.password());
         return ResponseEntity.noContent().build();
     }
 

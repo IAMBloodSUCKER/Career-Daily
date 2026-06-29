@@ -216,6 +216,7 @@ let charOptions = null;
 let selectedStack = new Set(['Java Core']);
 let onboardingStep = 1;
 let workspace = null;
+let authUser = null;
 let openApp = null;
 let openWindows = new Map();
 let focusedWindowId = null;
@@ -943,7 +944,8 @@ function delay(ms) {
 
 async function markContactRead(contactId) {
     if (!contactId || !workspace) return;
-    const hasUnread = workspace.messages.some(m => m.contactId === contactId && !m.fromPlayer && !m.read);
+    const hasUnread = workspace.messages.some(m => m.contactId === contactId && !m.fromPlayer && !m.read
+        && !isSlackChannelMessage(m));
     if (!hasUnread) return;
     const resp = await api('/messages/read-contact', {
         method: 'POST',
@@ -954,13 +956,20 @@ async function markContactRead(contactId) {
 
 async function markChannelRead() {
     if (!workspace) return;
-    const hasUnread = workspace.messages.some(m => !m.fromPlayer && !m.read);
+    const hasUnread = workspace.messages.some(m => isSlackChannelMessage(m) && !m.fromPlayer && !m.read);
     if (!hasUnread) return;
     const resp = await api('/messages/read-channel', { method: 'POST', body: '{}' });
     ws(resp);
 }
 
 // ===== МЕНЮ =====
+
+function prefillPlayerNameFromRegistration() {
+    const input = document.getElementById('player-name');
+    if (!input || !authUser || input.value.trim()) return;
+    const name = (authUser.displayName || authUser.username || '').trim();
+    if (name) input.value = name;
+}
 
 async function initMenu() {
     let modes;
@@ -1068,6 +1077,7 @@ async function initMenu() {
     });
     updateModeDesc();
 
+    prefillPlayerNameFromRegistration();
     await refreshMenuResume();
 }
 
@@ -1184,7 +1194,13 @@ async function hasSavedGame() {
 
 async function confirmReplaceSave(message) {
     if (!(await hasSavedGame())) return true;
-    return confirm(message || 'Текущий прогресс будет удалён. Продолжить?');
+    return showAppConfirm({
+        title: 'Новая игра',
+        message: message || 'Текущий прогресс будет удалён. Продолжить?',
+        confirmText: 'Начать заново',
+        cancelText: 'Отмена',
+        danger: true
+    });
 }
 
 async function goToOnboarding() {
@@ -1392,6 +1408,7 @@ async function startGame() {
     }
     workspace = resp.workspace;
     deliveredMessageIds.clear();
+    if (typeof MorningCommute !== 'undefined') MorningCommute.clearAll();
     document.getElementById('onboarding-screen').classList.add('hidden');
     clearEventLog();
     appendEvent(resp.message);
@@ -2268,6 +2285,26 @@ function slackTotalUnread() {
     return (workspace?.contacts || []).reduce((s, c) => s + (c.unread || 0), 0);
 }
 
+/** Сообщение для #team-… (общий канал), не личка. */
+function isSlackChannelMessage(m) {
+    if (!m) return false;
+    if (m.channel === true) return true;
+    if (m.channel === false) return false;
+    if (m.fromPlayer || m.taskId) return false;
+    const first = (workspace?.player?.name || '').trim().split(/\s+/)[0];
+    if (first && m.text && m.text.includes('@' + first)) return false;
+    if (m.text && (m.text.includes('@channel') || m.text.includes('@here'))) return true;
+    if (m.id === 'msg-welcome-channel' || m.id === 'msg-igor-standup' || (m.id && m.id.startsWith('msg-ch-'))) {
+        return true;
+    }
+    if (m.id && m.id.startsWith('msg-welcome-') && m.id !== 'msg-welcome-anna') return true;
+    return false;
+}
+
+function slackChannelUnread() {
+    return (workspace?.messages || []).filter(m => isSlackChannelMessage(m) && !m.fromPlayer && !m.read).length;
+}
+
 function buildSlackRail(appId) {
     const totalUnread = slackTotalUnread();
     const rail = document.createElement('aside');
@@ -2328,7 +2365,7 @@ function buildSlackSidebar(appId) {
     channelSection.textContent = 'Channels';
     sidebar.appendChild(channelSection);
 
-    const channelUnread = totalUnread;
+    const channelUnread = slackChannelUnread();
     const channelBtn = document.createElement('button');
     channelBtn.type = 'button';
     channelBtn.className = 'slack-channel' + (slackView === 'channel' ? ' active' : '') + (channelUnread > 0 ? ' has-unread' : '');
@@ -2458,16 +2495,18 @@ function renderSlackChannelMain(main, appId) {
     const messages = document.createElement('div');
     messages.className = 'slack-messages';
     const channelMsgs = workspace.messages
-        .filter(m => !hiddenChatMessageIds.has(m.id))
+        .filter(m => isSlackChannelMessage(m) && !hiddenChatMessageIds.has(m.id))
         .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
 
     if (!channelMsgs.length) {
-        messages.innerHTML = '<p class="slack-empty">Канал пуст. Сообщения коллег появятся в течение дня.</p>';
+        messages.innerHTML = '<p class="slack-empty">Канал пуст. Здесь — общие новости команды, не личные задачи.</p>';
     } else {
         channelMsgs.forEach(m => {
             const row = document.createElement('div');
             const isUnread = !m.fromPlayer && !m.read;
-            row.className = 'slack-msg' + (m.fromPlayer ? ' slack-msg--mine' : '') + (isUnread ? ' slack-msg--unread' : '')
+            row.className = 'slack-msg slack-msg--channel'
+                + (m.fromPlayer ? ' slack-msg--mine' : '')
+                + (isUnread ? ' slack-msg--unread' : '')
                 + (typeof ChatTextAnalyzer !== 'undefined' ? ChatTextAnalyzer.messageClass(m.text, m.fromPlayer) : '');
             const avatar = m.fromPlayer ? '👨‍💻' : (workspace.contacts.find(c => c.id === m.contactId)?.avatar || '💬');
             const ticket = getTicketForMessage(m);
@@ -2479,20 +2518,13 @@ function renderSlackChannelMain(main, appId) {
                     </div>
                     <div class="slack-msg-text">${escapeHtml(m.text)}</div>
                 </div>`;
-            row.style.cursor = m.fromPlayer ? 'default' : 'pointer';
-            if (!m.fromPlayer) {
-                row.onclick = () => {
-                    selectSlackContact(m.contactId, appId);
-                    markContactRead(m.contactId).catch(() => {});
-                };
-            }
             messages.appendChild(row);
         });
     }
 
     const compose = document.createElement('footer');
     compose.className = 'slack-compose slack-compose-channel';
-    compose.innerHTML = '<p class="reply-hint">💡 Ответьте в личных сообщениях — выберите контакт слева или нажмите на сообщение.</p>';
+    compose.innerHTML = '<p class="reply-hint">💡 Задачи и личные сообщения — во вкладке «Личные сообщения» слева.</p>';
 
     main.append(topbar, messages, compose);
 
@@ -2510,7 +2542,9 @@ function renderSlackDmMain(main, appId, contactId) {
 
     const messages = document.createElement('div');
     messages.className = 'slack-messages';
-    workspace.messages.filter(m => m.contactId === contactId && !hiddenChatMessageIds.has(m.id)).forEach(m => {
+    workspace.messages
+        .filter(m => m.contactId === contactId && !isSlackChannelMessage(m) && !hiddenChatMessageIds.has(m.id))
+        .forEach(m => {
         const row = document.createElement('div');
         const isUnread = !m.fromPlayer && !m.read;
         row.className = 'slack-msg' + (m.fromPlayer ? ' slack-msg--mine' : '') + (isUnread ? ' slack-msg--unread' : '')
@@ -3430,7 +3464,36 @@ async function logoutUser() {
     window.location.href = '/';
 }
 
+async function deleteOwnAccount() {
+    const AUTH_API = window.__AUTH_API__ || '/api/auth';
+    const confirmed = window.confirm(
+        'Удалить аккаунт безвозвратно?\n\nБудут удалены учётная запись, игровой прогресс и персональные данные. Это действие нельзя отменить.'
+    );
+    if (!confirmed) return;
+
+    const password = window.prompt('Введите пароль для подтверждения удаления:');
+    if (!password) return;
+
+    try {
+        const res = await fetch(AUTH_API + '/account', {
+            method: 'DELETE',
+            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            window.alert(data.message || 'Не удалось удалить аккаунт');
+            return;
+        }
+        setAuthToken('');
+        window.location.href = '/?deleted=1';
+    } catch {
+        window.alert('Ошибка сети — проверьте подключение');
+    }
+}
+
 document.getElementById('logout-btn')?.addEventListener('click', () => logoutUser().catch(console.error));
+document.getElementById('delete-account-btn')?.addEventListener('click', () => deleteOwnAccount().catch(console.error));
 
 (async () => {
     try {
@@ -3441,6 +3504,7 @@ document.getElementById('logout-btn')?.addEventListener('click', () => logoutUse
             return;
         }
         const user = await res.json();
+        authUser = user;
         const label = document.getElementById('menu-user-label');
         if (label) label.textContent = '👤 ' + (user.displayName || user.username);
         if (user.admin) {

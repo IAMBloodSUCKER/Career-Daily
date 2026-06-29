@@ -1,6 +1,7 @@
 package com.devsimulator.service;
 
 import com.devsimulator.api.dto.CaptchaConfigDto;
+import com.devsimulator.api.dto.CaptchaTileDto;
 import com.devsimulator.api.dto.RegisterRequest;
 import com.devsimulator.config.CaptchaProperties;
 import org.springframework.stereotype.Service;
@@ -13,16 +14,39 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Service
 public class CaptchaService {
 
     private static final Duration CHALLENGE_TTL = Duration.ofMinutes(10);
     private static final int MAX_CHALLENGES = 500;
+    private static final int SLIDER_TOLERANCE = 8;
+    private static final int GRID_SIZE = 9;
+
+    private static final List<ImageCategory> IMAGE_CATEGORIES = List.of(
+            new ImageCategory("транспорт", List.of("🚗", "🚌", "🚕", "🚙", "🛻")),
+            new ImageCategory("фрукты", List.of("🍎", "🍌", "🍇", "🍊", "🍓")),
+            new ImageCategory("животные", List.of("🐱", "🐶", "🐻", "🦊", "🐼")),
+            new ImageCategory("еда", List.of("🍕", "🍔", "🌮", "🍣", "🥗")),
+            new ImageCategory("спорт", List.of("⚽", "🏀", "🎾", "🏐", "🥎"))
+    );
+
+    private static final List<String> DISTRACTOR_ICONS = List.of(
+            "☕", "📱", "💡", "🎵", "📚", "⌨️", "🖥️", "🎮", "🧩", "🔧", "📎", "🌧️"
+    );
+
+    private static final List<String> SLIDER_MARKS = List.of("A", "B", "C", "D", "E");
 
     private final CaptchaProperties properties;
     private final HttpClient httpClient = HttpClient.newBuilder()
@@ -41,6 +65,9 @@ public class CaptchaService {
             case "yandex" -> new CaptchaConfigDto(
                     "yandex",
                     properties.getYandex().getClientKey().trim(),
+                    null,
+                    null,
+                    null,
                     null,
                     null
             );
@@ -74,37 +101,129 @@ public class CaptchaService {
 
     private CaptchaConfigDto issueInternalChallenge() {
         purgeExpired();
-        int a = 2 + random.nextInt(18);
-        int b = 2 + random.nextInt(18);
-        boolean multiply = random.nextBoolean();
-        int answer = multiply ? a * b : a + b;
-        String question = multiply ? a + " * " + b + " = ?" : a + " + " + b + " = ?";
+        if (random.nextBoolean()) {
+            return issueImageChallenge();
+        }
+        return issueSliderChallenge();
+    }
+
+    private CaptchaConfigDto issueImageChallenge() {
+        ImageCategory category = IMAGE_CATEGORIES.get(random.nextInt(IMAGE_CATEGORIES.size()));
+        int correctCount = 3 + random.nextInt(2);
+
+        List<Integer> indices = new ArrayList<>();
+        for (int i = 0; i < GRID_SIZE; i++) {
+            indices.add(i);
+        }
+        Collections.shuffle(indices, random);
+        Set<Integer> correctIndices = new HashSet<>(indices.subList(0, correctCount));
+
+        List<String> shuffledDistractors = new ArrayList<>(DISTRACTOR_ICONS);
+        Collections.shuffle(shuffledDistractors, random);
+
+        List<CaptchaTileDto> tiles = new ArrayList<>(GRID_SIZE);
+        for (int i = 0; i < GRID_SIZE; i++) {
+            String icon = correctIndices.contains(i)
+                    ? category.icons().get(random.nextInt(category.icons().size()))
+                    : shuffledDistractors.get(random.nextInt(shuffledDistractors.size()));
+            tiles.add(new CaptchaTileDto(i, icon));
+        }
+
         String id = UUID.randomUUID().toString();
-        challenges.put(id, new InternalChallenge(answer, Instant.now().plus(CHALLENGE_TTL)));
+        String expected = correctIndices.stream()
+                .sorted()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+        challenges.put(id, new InternalChallenge("image", expected, Instant.now().plus(CHALLENGE_TTL)));
         trimIfNeeded();
-        return new CaptchaConfigDto("internal", null, id, question);
+
+        String sample = category.icons().get(0);
+        String question = "Выберите все: " + sample + " (" + category.labelRu() + ")";
+        return new CaptchaConfigDto("internal", null, id, question, "image", tiles, null);
+    }
+
+    private CaptchaConfigDto issueSliderChallenge() {
+        int slot = random.nextInt(SLIDER_MARKS.size());
+        int target = slot * 25;
+        String mark = SLIDER_MARKS.get(slot);
+
+        String id = UUID.randomUUID().toString();
+        challenges.put(id, new InternalChallenge("slider", String.valueOf(target), Instant.now().plus(CHALLENGE_TTL)));
+        trimIfNeeded();
+
+        String question = "Перетащите стрелку → на метку " + mark;
+        return new CaptchaConfigDto(
+                "internal",
+                null,
+                id,
+                question,
+                "slider",
+                null,
+                SLIDER_MARKS
+        );
     }
 
     private void verifyInternal(String captchaId, String captchaAnswer) {
         if (captchaId == null || captchaId.isBlank()) {
-            throw new IllegalArgumentException("Решите задачу капчи");
+            throw new IllegalArgumentException("Пройдите проверку капчи");
         }
         if (captchaAnswer == null || captchaAnswer.isBlank()) {
-            throw new IllegalArgumentException("Введите ответ капчи");
+            throw new IllegalArgumentException("Пройдите проверку капчи");
         }
+
         InternalChallenge challenge = challenges.remove(captchaId.trim());
         if (challenge == null || challenge.expiresAt().isBefore(Instant.now())) {
             throw new IllegalArgumentException("Капча устарела — обновите задачу");
         }
-        int given;
+
+        if ("slider".equals(challenge.kind())) {
+            verifySlider(challenge.expectedAnswer(), captchaAnswer);
+            return;
+        }
+        verifyImage(challenge.expectedAnswer(), captchaAnswer);
+    }
+
+    private void verifyImage(String expected, String given) {
+        Set<Integer> expectedSet = parseIndexSet(expected);
+        Set<Integer> givenSet = parseIndexSet(given);
+        if (givenSet.isEmpty()) {
+            throw new IllegalArgumentException("Выберите нужные картинки");
+        }
+        if (!expectedSet.equals(givenSet)) {
+            throw new IllegalArgumentException("Неверный выбор — попробуйте снова");
+        }
+    }
+
+    private void verifySlider(String expected, String given) {
+        int target;
+        int value;
         try {
-            given = Integer.parseInt(captchaAnswer.trim());
+            target = Integer.parseInt(expected.trim());
+            value = Integer.parseInt(given.trim());
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Ответ капчи должен быть числом");
+            throw new IllegalArgumentException("Перетащите ползунок на нужную метку");
         }
-        if (given != challenge.answer()) {
-            throw new IllegalArgumentException("Неверный ответ капчи");
+        if (Math.abs(value - target) > SLIDER_TOLERANCE) {
+            throw new IllegalArgumentException("Ползунок не на метке — попробуйте точнее");
         }
+    }
+
+    private static Set<Integer> parseIndexSet(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return Set.of();
+        }
+        return Arrays.stream(raw.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(s -> {
+                    try {
+                        return Integer.parseInt(s);
+                    } catch (NumberFormatException e) {
+                        return -1;
+                    }
+                })
+                .filter(i -> i >= 0)
+                .collect(Collectors.toCollection(HashSet::new));
     }
 
     private void verifyYandex(String token, String clientIp) {
@@ -153,6 +272,9 @@ public class CaptchaService {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
-    private record InternalChallenge(int answer, Instant expiresAt) {
+    private record ImageCategory(String labelRu, List<String> icons) {
+    }
+
+    private record InternalChallenge(String kind, String expectedAnswer, Instant expiresAt) {
     }
 }

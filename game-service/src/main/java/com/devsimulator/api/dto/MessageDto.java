@@ -8,10 +8,11 @@ public record MessageDto(
         String text,
         boolean fromPlayer,
         boolean read,
-        String taskId
+        String taskId,
+        boolean channel
 ) {
     public static MessageDto from(ChatMessage m) {
         return new MessageDto(m.getId(), m.getContactId(), m.getText(),
-                m.isFromPlayer(), m.isRead(), m.getTaskId());
+                m.isFromPlayer(), m.isRead(), m.getTaskId(), m.isChannel());
     }
 }

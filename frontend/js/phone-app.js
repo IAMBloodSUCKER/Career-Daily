@@ -34,9 +34,14 @@ const PhoneApp = (() => {
         return (workspace?.contacts || []).reduce((s, c) => s + (c.unread || 0), 0);
     }
 
+    function isPhoneDmMessage(m) {
+        return typeof isSlackChannelMessage === 'function' ? !isSlackChannelMessage(m) : true;
+    }
+
     function lastMessageFor(contactId) {
         const msgs = (workspace?.messages || [])
-            .filter(m => m.contactId === contactId && !(typeof hiddenChatMessageIds !== 'undefined' && hiddenChatMessageIds.has(m.id)))
+            .filter(m => m.contactId === contactId && isPhoneDmMessage(m)
+                && !(typeof hiddenChatMessageIds !== 'undefined' && hiddenChatMessageIds.has(m.id)))
             .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
         return msgs[msgs.length - 1] || null;
     }
@@ -242,7 +247,8 @@ const PhoneApp = (() => {
 
     function fillChatThread(thread, contactId) {
         const msgs = (workspace?.messages || [])
-            .filter(m => m.contactId === contactId && !(typeof hiddenChatMessageIds !== 'undefined' && hiddenChatMessageIds.has(m.id)))
+            .filter(m => m.contactId === contactId && isPhoneDmMessage(m)
+                && !(typeof hiddenChatMessageIds !== 'undefined' && hiddenChatMessageIds.has(m.id)))
             .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
 
         thread.innerHTML = '';

@@ -2,8 +2,6 @@ package com.devsimulator.security;
 
 import com.devsimulator.persistence.entity.AppUser;
 import com.devsimulator.persistence.repository.AppUserRepository;
-import com.devsimulator.service.RussianRegistrationPolicy;
-import java.util.Optional;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -20,15 +18,7 @@ public class AppUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        AppUser user = appUserRepository.findByUsernameIgnoreCase(username)
-                .or(() -> appUserRepository.findByEmailIgnoreCase(username))
-                .or(() -> {
-                    if (RussianRegistrationPolicy.looksLikePhone(username)) {
-                        return appUserRepository.findByPhone(
-                                RussianRegistrationPolicy.normalizePhone(username));
-                    }
-                    return Optional.empty();
-                })
+        AppUser user = appUserRepository.findByUsernameIgnoreCase(username.trim())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
         return new AppUserPrincipal(user);
     }

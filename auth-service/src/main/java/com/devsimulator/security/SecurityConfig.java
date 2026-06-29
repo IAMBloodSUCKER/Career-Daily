@@ -40,8 +40,7 @@ public class SecurityConfig {
                                 "/api/auth/register",
                                 "/api/auth/login",
                                 "/api/auth/captcha-config",
-                                "/api/auth/sms-config",
-                                "/api/auth/phone/send-code"
+                                "/api/auth/legal-config"
                         ).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/auth/**").authenticated()

@@ -44,7 +44,7 @@ sequenceDiagram
 |---------|------|------------|
 | `frontend/` | 3000 | HTML, CSS, JS; прокси `/api` на gateway |
 | `gateway/` | 8080 | Маршрутизация `/api/auth/**`, `/api/game/**` |
-| `auth-service/` | 8081 | Регистрация (+ SMS, капча), логин, админка |
+| `auth-service/` | 8081 | Регистрация (логин/пароль, капча), логин, админка |
 | `game-service/` | 8082 | Движок, сохранения |
 | `common/` | — | JWT, фильтры |
 
@@ -58,7 +58,7 @@ docker compose up -d --build
 - Gateway: http://localhost:8080
 - Postgres: порт 5433 на хосте
 
-Переменные SMS и образов — `.env.example`.
+Переменные окружения — `.env.example`.
 
 ## Локально без Docker
 
@@ -93,7 +93,7 @@ docker compose restart auth-service game-service
 
 ## Регистрация (auth-service)
 
-1. `POST /api/auth/phone/send-code` — OTP на +7
-2. `POST /api/auth/register` — телефон, код, капча, согласие 152-ФЗ
+1. `POST /api/auth/register` — логин, пароль, имя в игре, капча, согласия 152-ФЗ
+2. Вход — `POST /api/auth/login` по логину и паролю
 
-Провайдер SMS: `log` (dev), `smsru`, `none` — `app.sms.*` в `application.properties`.
+Восстановление пароля не предусмотрено. Удаление аккаунта — `DELETE /api/auth/account`.

@@ -109,7 +109,8 @@ public record WorkspaceDto(
 
     private static int countUnread(InteractiveGameEngine engine, String contactId) {
         return (int) engine.getMessages().stream()
-                .filter(m -> contactId.equals(m.getContactId()) && !m.isFromPlayer() && !m.isRead())
+                .filter(m -> contactId.equals(m.getContactId())
+                        && !m.isFromPlayer() && !m.isRead() && !m.isChannel())
                 .count();
     }
 }

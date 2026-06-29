@@ -39,6 +39,18 @@ public class AppUser {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    @Column(name = "pd_consent_at")
+    private Instant pdConsentAt;
+
+    @Column(name = "pd_consent_version", length = 32)
+    private String pdConsentVersion;
+
+    @Column(name = "terms_accepted_at")
+    private Instant termsAcceptedAt;
+
+    @Column(name = "terms_version", length = 32)
+    private String termsVersion;
+
     protected AppUser() {
     }
 
@@ -90,7 +102,43 @@ public class AppUser {
         this.admin = true;
     }
 
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Instant getPdConsentAt() {
+        return pdConsentAt;
+    }
+
+    public String getPdConsentVersion() {
+        return pdConsentVersion;
+    }
+
+    public Instant getTermsAcceptedAt() {
+        return termsAcceptedAt;
+    }
+
+    public String getTermsVersion() {
+        return termsVersion;
+    }
+
+    public void setPdConsentAt(Instant pdConsentAt) {
+        this.pdConsentAt = pdConsentAt;
+    }
+
+    public void setPdConsentVersion(String pdConsentVersion) {
+        this.pdConsentVersion = pdConsentVersion;
+    }
+
+    public void setTermsAcceptedAt(Instant termsAcceptedAt) {
+        this.termsAcceptedAt = termsAcceptedAt;
+    }
+
+    public void setTermsVersion(String termsVersion) {
+        this.termsVersion = termsVersion;
     }
 }

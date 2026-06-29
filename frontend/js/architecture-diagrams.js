@@ -1,9 +1,16 @@
-/** Sketch-style architecture flows (Excalidraw-like) per project */
+/** Architecture flow diagrams — orthogonal layout, aligned labels */
 (function () {
-    const M = `<defs><marker id="arch-arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#2d2d2d"/></marker></defs>`;
+    const M = `<defs><marker id="arch-arr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#374151"/></marker></defs>`;
+    const BG = '#fafaf8';
+    const ST = '#374151';
+    const SW = 1.5;
+    const CY = 122;
+    const ROW_TOP = CY - 36;
+    const ROW_BOT = CY + 36;
+    const GAP = 12;
 
     function svg(w, h, body) {
-        return `<svg class="arch-sketch-svg" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${M}${body}</svg>`;
+        return `<svg class="arch-sketch-svg" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision">${M}<rect width="100%" height="100%" fill="${BG}"/>${body}</svg>`;
     }
 
     function box(x, y, w, h, text, fill = '#fff') {
@@ -11,328 +18,362 @@
         const ty = y + h / 2 - (lines.length - 1) * 7 + 4;
         const tspans = lines.map((l, i) =>
             `<tspan x="${x + w / 2}" dy="${i === 0 ? 0 : 14}">${l}</tspan>`).join('');
-        return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="${fill}" stroke="#2d2d2d" stroke-width="1.8"/>
-<text x="${x + w / 2}" y="${ty}" text-anchor="middle" font-size="11" font-family="Segoe UI,system-ui,sans-serif">${tspans}</text>`;
+        return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="${fill}" stroke="${ST}" stroke-width="${SW}"/>
+<text x="${x + w / 2}" y="${ty}" text-anchor="middle" font-size="10.5" font-family="Segoe UI,system-ui,sans-serif" fill="#1e293b">${tspans}</text>`;
     }
 
     function db(x, y, label, fill = '#dbeafe') {
-        return `<ellipse cx="${x + 44}" cy="${y + 12}" rx="44" ry="10" fill="${fill}" stroke="#2d2d2d" stroke-width="1.8"/>
-<rect x="${x}" y="${y + 10}" width="88" height="52" fill="${fill}" stroke="#2d2d2d" stroke-width="1.8"/>
-<ellipse cx="${x + 44}" cy="${y + 62}" rx="44" ry="10" fill="${fill}" stroke="#2d2d2d" stroke-width="1.8"/>
-<text x="${x + 44}" y="${y + 42}" text-anchor="middle" font-size="10" font-family="Segoe UI,sans-serif">${label}</text>`;
+        const w = 92;
+        const h = 52;
+        return `<ellipse cx="${x + w / 2}" cy="${y + 9}" rx="${w / 2}" ry="8" fill="${fill}" stroke="${ST}" stroke-width="${SW}"/>
+<rect x="${x}" y="${y + 7}" width="${w}" height="${h}" fill="${fill}" stroke="${ST}" stroke-width="${SW}"/>
+<ellipse cx="${x + w / 2}" cy="${y + h + 7}" rx="${w / 2}" ry="8" fill="${fill}" stroke="${ST}" stroke-width="${SW}"/>
+<text x="${x + w / 2}" y="${y + 34}" text-anchor="middle" font-size="10" font-family="Segoe UI,sans-serif" fill="#1e293b">${label}</text>`;
     }
 
     function kafka(x, y) {
-        return box(x, y, 72, 36, 'kafka', '#fef3c7');
+        return box(x, y, 76, 34, 'kafka', '#fef3c7');
     }
 
-    function arr(x1, y1, x2, y2, label, num) {
-        let s = `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#2d2d2d" stroke-width="1.6" marker-end="url(#arch-arr)"/>`;
-        if (num != null) {
-            s += `<circle cx="${(x1 + x2) / 2 - 20}" cy="${(y1 + y2) / 2 - 12}" r="10" fill="#fff" stroke="#2d2d2d"/>`;
-            s += `<text x="${(x1 + x2) / 2 - 20}" y="${(y1 + y2) / 2 - 8}" text-anchor="middle" font-size="9" font-weight="bold">(${num})</text>`;
-        }
-        if (label) {
-            s += `<text x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 16}" text-anchor="middle" font-size="9" fill="#475569" font-family="Consolas,monospace">${label}</text>`;
-        }
+    function badge(x, y, num) {
+        return `<circle cx="${x}" cy="${y}" r="8.5" fill="#fff" stroke="${ST}" stroke-width="1.3"/>
+<text x="${x}" y="${y + 3.2}" text-anchor="middle" font-size="7.5" font-weight="700" font-family="Segoe UI,sans-serif">(${num})</text>`;
+    }
+
+    function lbl(x, y, text, anchor = 'middle') {
+        if (!text) return '';
+        return `<text x="${x}" y="${y}" text-anchor="${anchor}" font-size="9" fill="#475569" font-family="Consolas,monospace">${text}</text>`;
+    }
+
+    /** Label above line, badge between label and line — no overlap */
+    function markH(mx, y, label, num) {
+        let s = '';
+        if (label) s += lbl(mx, y - (num != null ? 26 : 12), label);
+        if (num != null) s += badge(mx, y - 11, num);
         return s;
+    }
+
+    function markV(x, my, label, num) {
+        let s = '';
+        if (label) s += lbl(x + (num != null ? 30 : 14), my + 3, label, 'start');
+        if (num != null) s += badge(x + 11, my, num);
+        return s;
+    }
+
+    function hArr(x1, x2, y, label, num) {
+        const mx = (x1 + x2) / 2;
+        return `<line x1="${x1}" y1="${y}" x2="${x2 - 5}" y2="${y}" stroke="${ST}" stroke-width="${SW}" marker-end="url(#arch-arr)"/>`
+            + markH(mx, y, label, num);
+    }
+
+    function vArr(x, y1, y2, label, num) {
+        const my = (y1 + y2) / 2;
+        const dir = y2 > y1 ? 1 : -1;
+        return `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2 - dir * 5}" stroke="${ST}" stroke-width="${SW}" marker-end="url(#arch-arr)"/>`
+            + markV(x, my, label, num);
+    }
+
+    /** Orthogonal path — annotate on longest segment */
+    function route(points, label, num) {
+        if (points.length < 2) return '';
+        let bestLen = 0;
+        let ax = 0;
+        let ay = 0;
+        let horiz = true;
+        for (let i = 1; i < points.length; i++) {
+            const a = points[i - 1];
+            const b = points[i];
+            const len = Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
+            if (len > bestLen) {
+                bestLen = len;
+                ax = (a.x + b.x) / 2;
+                ay = (a.y + b.y) / 2;
+                horiz = Math.abs(b.x - a.x) >= Math.abs(b.y - a.y);
+            }
+        }
+        const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+        const ann = horiz ? markH(ax, ay, label, num) : markV(ax, ay, label, num);
+        return `<path d="${d}" fill="none" stroke="${ST}" stroke-width="${SW}" marker-end="url(#arch-arr)"/>${ann}`;
     }
 
     const ARCH_DIAGRAMS = {
         E_COMMERCE: [{
             title: 'Checkout flow',
-            html: svg(860, 280,
-                `<rect width="100%" height="100%" fill="#fafaf8"/>
-${box(20, 110, 64, 36, 'client')}
-${box(120, 100, 36, 56, 'LB', '#e2e8f0')}
-${box(200, 90, 100, 40, 'order-service')}
-${box(200, 150, 100, 40, 'payment-svc')}
-${kafka(340, 110)}
-${db(440, 88, 'PostgreSQL')}
-${db(440, 168, 'Redis', '#fecaca')}
-${arr(84, 128, 118, 128, 'POST /checkout', 1)}
-${arr(156, 110, 198, 110, '', 2)}
-${arr(156, 140, 198, 170, '', 3)}
-${arr(300, 110, 338, 128, 'event', 4)}
-${arr(300, 170, 438, 198, 'cache', 5)}`)
+            html: svg(740, 248,
+                `${box(20, CY - 18, 68, 36, 'client')}
+${box(108, CY - 30, 40, 60, 'LB', '#e2e8f0')}
+${box(168, ROW_TOP, 108, 40, 'order-service')}
+${box(168, ROW_BOT, 108, 40, 'payment-svc')}
+${kafka(300, ROW_TOP + 3)}
+${db(420, ROW_TOP - 4, 'PostgreSQL')}
+${db(420, ROW_BOT - 4, 'Redis', '#fecaca')}
+${hArr(88, 108, CY, 'POST /checkout', 1)}
+${hArr(148, 168, ROW_TOP + 20, '', 2)}
+${route([{ x: 148, y: CY }, { x: 148 + GAP, y: CY }, { x: 148 + GAP, y: ROW_BOT + 20 }, { x: 168, y: ROW_BOT + 20 }], '', 3)}
+${hArr(276, 300, ROW_TOP + 20, 'event', 4)}
+${hArr(276, 420, ROW_TOP + 20, 'persist', 5)}
+${hArr(276, 420, ROW_BOT + 20, 'cache', 6)}`)
         }],
         FINTECH: [{
             title: 'Payment authorization',
-            html: svg(860, 260,
-                `<rect width="100%" height="100%" fill="#fafaf8"/>
-${box(24, 100, 70, 36, 'merchant')}
-${box(130, 90, 40, 56, 'LB')}
-${box(210, 100, 110, 40, 'payment-core')}
-${box(350, 80, 90, 36, 'fraud-svc', '#fef3c7')}
-${box(350, 140, 90, 36, 'ledger-svc')}
-${db(480, 90, 'Oracle', '#dbeafe')}
-${arr(94, 118, 128, 118, 'auth', 1)}
-${arr(170, 118, 208, 118, '', 2)}
-${arr(320, 110, 348, 98, 'score', 3)}
-${arr(320, 130, 348, 158, 'post', 4)}
-${arr(440, 118, 478, 118, '', 5)}`)
+            html: svg(640, 248,
+                `${box(20, CY - 18, 72, 36, 'merchant')}
+${box(108, CY - 30, 40, 60, 'LB', '#e2e8f0')}
+${box(168, CY - 20, 112, 40, 'payment-core')}
+${box(300, ROW_TOP, 92, 36, 'fraud-svc', '#fef3c7')}
+${box(300, ROW_BOT, 92, 36, 'ledger-svc')}
+${db(420, CY - 32, 'Oracle', '#dbeafe')}
+${hArr(92, 108, CY, 'auth', 1)}
+${hArr(148, 168, CY, '', 2)}
+${route([{ x: 280, y: CY - 8 }, { x: 290, y: CY - 8 }, { x: 290, y: ROW_TOP + 18 }, { x: 300, y: ROW_TOP + 18 }], 'score', 3)}
+${route([{ x: 280, y: CY + 8 }, { x: 290, y: CY + 8 }, { x: 290, y: ROW_BOT + 18 }, { x: 300, y: ROW_BOT + 18 }], 'post', 4)}
+${hArr(392, 420, CY, '', 5)}`)
         }],
         STARTUP: [{
             title: 'Monolith deploy',
-            html: svg(860, 240,
-                `<rect width="100%" height="100%" fill="#fafaf8"/>
-${box(40, 90, 80, 40, 'client')}
-${box(160, 70, 140, 80, 'backend-api\n(monolith)', '#dcfce7')}
-${db(340, 85, 'MongoDB', '#bbf7d0')}
-${box(460, 90, 100, 40, 'GitHub\nActions', '#e2e8f0')}
-${box(600, 90, 80, 40, 'Docker\nVPS')}
-${arr(120, 110, 158, 110, 'REST', 1)}
-${arr(300, 110, 338, 110, '', 2)}
-${arr(440, 110, 458, 110, 'CI', 3)}
-${arr(540, 110, 598, 110, 'deploy', 4)}`)
+            html: svg(720, 200,
+                `${box(24, CY - 20, 80, 40, 'client')}
+${box(128, CY - 40, 140, 80, 'backend-api\n(monolith)', '#dcfce7')}
+${db(296, CY - 28, 'MongoDB', '#bbf7d0')}
+${box(408, CY - 20, 100, 40, 'GitHub\nActions', '#e2e8f0')}
+${box(532, CY - 20, 80, 40, 'Docker\nVPS')}
+${hArr(104, 128, CY, 'REST', 1)}
+${hArr(268, 296, CY, '', 2)}
+${hArr(384, 408, CY, 'CI', 3)}
+${hArr(508, 532, CY, 'deploy', 4)}`)
         }],
         ENTERPRISE: [{
             title: 'Legacy bridge',
-            html: svg(860, 280,
-                `<rect width="100%" height="100%" fill="#fafaf8"/>
-${box(20, 100, 90, 40, 'new MS')}
-${box(140, 100, 80, 40, 'ESB / MQ', '#fef3c7')}
-${box(260, 80, 100, 50, 'legacy\nEAR monolith', '#e2e8f0')}
-${db(400, 90, 'DB2', '#dbeafe')}
-${box(520, 100, 100, 40, 'architect\nreview', '#fce7f3')}
-${arr(110, 120, 138, 120, 'JMS', 1)}
-${arr(220, 120, 258, 105, '', 2)}
-${arr(360, 120, 398, 120, 'JDBC', 3)}
-${arr(110, 130, 518, 120, 'CR approval', 4)}`)
+            html: svg(680, 220,
+                `${box(16, CY - 20, 90, 40, 'new MS')}
+${box(126, CY - 20, 80, 40, 'ESB / MQ', '#fef3c7')}
+${box(226, CY - 25, 100, 50, 'legacy\nEAR monolith', '#e2e8f0')}
+${db(346, CY - 28, 'DB2', '#dbeafe')}
+${box(456, CY - 20, 100, 40, 'architect\nreview', '#fce7f3')}
+${hArr(106, 126, CY, 'JMS', 1)}
+${hArr(206, 226, CY, '', 2)}
+${hArr(326, 346, CY, 'JDBC', 3)}
+${route([{ x: 106, y: CY + 12 }, { x: 106, y: CY + 48 }, { x: 456, y: CY + 48 }, { x: 456, y: CY + 20 }], 'CR approval', 4)}`)
         }],
         EDTECH: [{
             title: 'Course progress',
-            html: svg(860, 260,
-                `<rect width="100%" height="100%" fill="#fafaf8"/>
-${box(30, 100, 64, 36, 'student')}
-${box(130, 90, 40, 56, 'LB')}
-${box(210, 100, 110, 40, 'progress-svc')}
-${db(360, 88, 'PostgreSQL')}
-${box(490, 100, 90, 40, 'search-svc')}
-${db(610, 88, 'OpenSearch', '#fef9c3')}
-${arr(94, 118, 128, 118, 'GET /progress', 1)}
-${arr(170, 118, 208, 118, '', 2)}
-${arr(320, 118, 358, 118, '', 3)}
-${arr(430, 118, 488, 118, 'index', 4)}
-${arr(580, 118, 608, 118, '', 5)}`)
+            html: svg(720, 200,
+                `${box(24, CY - 18, 64, 36, 'student')}
+${box(108, CY - 28, 40, 56, 'LB', '#e2e8f0')}
+${box(168, CY - 20, 110, 40, 'progress-svc')}
+${db(298, CY - 28, 'PostgreSQL')}
+${box(406, CY - 20, 90, 40, 'search-svc')}
+${db(516, CY - 28, 'OpenSearch', '#fef9c3')}
+${hArr(88, 108, CY, 'GET /progress', 1)}
+${hArr(148, 168, CY, '', 2)}
+${hArr(278, 298, CY, '', 3)}
+${hArr(384, 406, CY, 'index', 4)}
+${hArr(496, 516, CY, '', 5)}`)
         }],
         MDM: [{
             title: 'Golden record merge',
-            html: svg(880, 300,
-                `<rect width="100%" height="100%" fill="#fafaf8"/>
-${box(16, 40, 72, 32, 'CRM')}
-${box(16, 90, 72, 32, 'ERP')}
-${box(16, 140, 72, 32, 'Web')}
-${box(120, 80, 90, 44, 'ingestion-api')}
-${box(240, 80, 100, 44, 'match-service', '#fef3c7')}
-${box(380, 70, 100, 64, 'mdm-core')}
-${db(520, 78, 'PostgreSQL')}
-${kafka(520, 180)}
-${box(640, 100, 90, 40, 'stewardship\nUI')}
-${box(640, 180, 90, 40, 'DWH /\nCRM sync')}
-${arr(88, 56, 118, 95, 'CDC', 1)}
-${arr(88, 106, 118, 102, '', 2)}
-${arr(88, 156, 118, 110, '', 3)}
-${arr(210, 102, 238, 102, 'match', 4)}
-${arr(340, 102, 378, 102, 'merge', 5)}
-${arr(480, 102, 518, 102, 'save', 6)}
-${arr(480, 130, 518, 198, 'event', 7)}
-${arr(592, 200, 638, 200, 'poll', 8)}`)
+            html: svg(780, 280,
+                `${box(16, 36, 72, 32, 'CRM')}
+${box(16, 86, 72, 32, 'ERP')}
+${box(16, 136, 72, 32, 'Web')}
+${box(112, CY - 22, 90, 44, 'ingestion-api')}
+${box(222, CY - 22, 100, 44, 'match-service', '#fef3c7')}
+${box(342, CY - 32, 100, 64, 'mdm-core')}
+${db(462, CY - 30, 'PostgreSQL')}
+${kafka(462, CY + 52)}
+${box(572, CY - 20, 90, 40, 'stewardship\nUI')}
+${box(572, CY + 42, 90, 40, 'DWH /\nCRM sync')}
+${route([{ x: 88, y: 52 }, { x: 102, y: 52 }, { x: 102, y: CY - 8 }, { x: 112, y: CY - 8 }], 'CDC', 1)}
+${route([{ x: 88, y: 102 }, { x: 102, y: 102 }, { x: 102, y: CY + 4 }, { x: 112, y: CY + 4 }], '', 2)}
+${route([{ x: 88, y: 152 }, { x: 102, y: 152 }, { x: 102, y: CY + 16 }, { x: 112, y: CY + 16 }], '', 3)}
+${hArr(202, 222, CY, 'match', 4)}
+${hArr(322, 342, CY, 'merge', 5)}
+${hArr(442, 462, CY, 'save', 6)}
+${route([{ x: 392, y: CY + 16 }, { x: 392, y: CY + 70 }, { x: 462, y: CY + 70 }], 'event', 7)}
+${hArr(554, 572, CY + 62, 'poll', 8)}`)
         }],
         SOCIAL_PLATFORM: [{
             title: 'Save article',
-            html: svg(900, 320,
-                `<rect width="100%" height="100%" fill="#fafaf8"/>
-${box(10, 120, 56, 36, 'client')}
-${box(90, 100, 32, 76, 'LB', '#e2e8f0')}
-${box(150, 50, 88, 32, 'auth-svc')}
-${db(150, 10, 'PostgreSQL', '#dbeafe')}
-${box(150, 130, 100, 40, 'article-svc')}
-${db(280, 118, 'Cassandra', '#bbf7d0')}
-${kafka(400, 128)}
-${box(500, 90, 96, 40, 'search-svc')}
-${db(620, 78, 'OpenSearch', '#fef9c3')}
-${box(500, 170, 96, 40, 'feed-svc')}
-${box(620, 160, 96, 40, 'followers-svc')}
-${db(740, 148, 'Neo4j', '#fecaca')}
-${db(740, 210, 'PostgreSQL', '#dbeafe')}
-<text x="748" y="248" font-size="8" fill="#64748b">user_id, article_id</text>
-${arr(66, 138, 88, 138, 'POST /article', 1)}
-${arr(122, 138, 148, 150, '', 2)}
-${arr(250, 150, 278, 150, 'save', 3)}
-${arr(250, 140, 398, 146, 'produce', 4)}
-${arr(122, 120, 148, 66, '', null)}
-${arr(496, 146, 618, 98, 'poll', 5)}
-${arr(580, 110, 618, 110, 'index', 6)}
-${arr(496, 190, 618, 180, 'poll', 5)}
-${arr(716, 180, 738, 170, 'followers', 6)}
-${arr(716, 200, 738, 228, 'feed', 7)}
-<text x="260" y="300" font-size="9" fill="#64748b" font-style="italic">Camunda (?) — optional workflow</text>`)
+            html: svg(860, 280,
+                `${box(16, CY - 18, 60, 36, 'client')}
+${box(96, CY - 30, 40, 60, 'LB', '#e2e8f0')}
+${box(156, ROW_TOP, 96, 36, 'auth-svc')}
+${db(156, ROW_TOP - 72, 'PostgreSQL', '#dbeafe')}
+${box(156, ROW_BOT, 104, 40, 'article-svc')}
+${db(280, ROW_BOT - 4, 'Cassandra', '#bbf7d0')}
+${kafka(392, ROW_BOT + 3)}
+${box(488, ROW_TOP, 96, 40, 'search-svc')}
+${db(604, ROW_TOP - 4, 'OpenSearch', '#fef9c3')}
+${box(488, ROW_BOT, 96, 40, 'feed-svc')}
+${box(604, ROW_BOT, 96, 40, 'followers-svc')}
+${db(720, ROW_TOP - 4, 'Neo4j', '#fecaca')}
+${db(720, ROW_BOT - 4, 'PostgreSQL', '#dbeafe')}
+${hArr(76, 96, CY, 'POST /article', 1)}
+${hArr(136, 156, ROW_BOT + 20, '', 2)}
+${hArr(260, 280, ROW_BOT + 20, 'save', 3)}
+${hArr(376, 392, ROW_BOT + 20, 'produce', 4)}
+${route([{ x: 136, y: ROW_BOT + 20 }, { x: 136, y: ROW_TOP + 18 }, { x: 156, y: ROW_TOP + 18 }], 'token', null)}
+${route([{ x: 468, y: ROW_BOT + 20 }, { x: 478, y: ROW_BOT + 20 }, { x: 478, y: ROW_TOP + 20 }, { x: 488, y: ROW_TOP + 20 }], 'poll', 5)}
+${hArr(584, 604, ROW_TOP + 20, 'index', 6)}
+${route([{ x: 488, y: ROW_BOT + 20 }, { x: 488, y: ROW_BOT + 52 }, { x: 604, y: ROW_BOT + 52 }, { x: 604, y: ROW_BOT + 20 }], 'poll', 7)}
+${hArr(700, 720, ROW_BOT + 20, 'followers', 8)}
+${hArr(700, 720, ROW_TOP + 20, 'feed', 9)}`)
         }, {
             title: 'Get comments',
-            html: svg(720, 240,
-                `<rect width="100%" height="100%" fill="#fafaf8"/>
-${box(24, 90, 56, 36, 'client')}
-${box(110, 70, 32, 76, 'LB')}
-${box(170, 100, 110, 40, 'comment-svc')}
-${box(170, 40, 110, 36, 'article-svc', '#e2e8f0')}
-${db(320, 88, 'MongoDB', '#bbf7d0')}
-${arr(80, 108, 108, 108, 'GET …/comment', 1)}
-${arr(142, 108, 168, 120, '', 2)}
-${arr(225, 100, 225, 76, 'check exists', 3)}
-${arr(280, 120, 318, 120, 'get', 4)}`)
+            html: svg(520, 228,
+                `${box(20, CY - 18, 60, 36, 'client')}
+${box(96, CY - 30, 40, 60, 'LB', '#e2e8f0')}
+${box(156, CY - 20, 112, 40, 'comment-svc')}
+${box(156, ROW_TOP, 112, 36, 'article-svc', '#e2e8f0')}
+${db(288, CY - 32, 'MongoDB', '#bbf7d0')}
+${hArr(80, 96, CY, 'GET …/comment', 1)}
+${hArr(136, 156, CY, '', 2)}
+${vArr(212, ROW_TOP + 36, CY - 20, 'check exists', 3)}
+${hArr(268, 288, CY, 'get', 4)}`)
         }],
         OPEN_BANKING: [{
             title: 'Payment initiation (PIS)',
-            html: svg(860, 280,
-                `<rect width="100%" height="100%" fill="#fafaf8"/>
-${box(20, 100, 64, 36, 'TPP app')}
-${box(110, 90, 40, 56, 'API GW')}
-${box(180, 60, 100, 36, 'consent-svc', '#fef3c7')}
-${box(180, 120, 100, 40, 'payment-svc')}
-${box(320, 110, 110, 40, 'bank-connector')}
-${box(460, 100, 90, 40, 'Bank API')}
-${db(580, 88, 'audit log', '#e2e8f0')}
-${arr(84, 118, 108, 118, 'PIS', 1)}
-${arr(150, 100, 178, 78, 'consent', 2)}
-${arr(150, 130, 178, 140, '', 3)}
-${arr(280, 130, 318, 130, 'mTLS', 4)}
-${arr(430, 130, 458, 130, '', 5)}
-${arr(280, 150, 578, 110, 'audit', 6)}`)
+            html: svg(720, 248,
+                `${box(20, CY - 18, 68, 36, 'TPP app')}
+${box(108, CY - 30, 40, 60, 'API GW', '#e2e8f0')}
+${box(168, ROW_TOP, 104, 36, 'consent-svc', '#fef3c7')}
+${box(168, ROW_BOT, 104, 40, 'payment-svc')}
+${box(292, CY - 8, 112, 40, 'bank-connector')}
+${box(424, CY - 20, 92, 40, 'Bank API')}
+${db(536, CY - 32, 'audit log', '#e2e8f0')}
+${hArr(88, 108, CY, 'PIS', 1)}
+${route([{ x: 148, y: CY - 6 }, { x: 148 + GAP, y: CY - 6 }, { x: 148 + GAP, y: ROW_TOP + 18 }, { x: 168, y: ROW_TOP + 18 }], 'consent', 2)}
+${route([{ x: 148, y: CY + 6 }, { x: 148 + GAP, y: CY + 6 }, { x: 148 + GAP, y: ROW_BOT + 20 }, { x: 168, y: ROW_BOT + 20 }], '', 3)}
+${route([{ x: 272, y: ROW_BOT + 20 }, { x: 282, y: ROW_BOT + 20 }, { x: 282, y: CY }, { x: 292, y: CY }], 'mTLS', 4)}
+${hArr(404, 424, CY, '', 5)}
+${route([{ x: 404, y: ROW_BOT + 40 }, { x: 404, y: CY + 52 }, { x: 536, y: CY + 52 }, { x: 536, y: CY + 34 }], 'audit', 6)}`)
         }],
         SUPPLY_CHAIN: [{
             title: 'Reserve inventory',
-            html: svg(860, 260,
-                `<rect width="100%" height="100%" fill="#fafaf8"/>
-${box(24, 100, 70, 36, 'shop')}
-${box(120, 90, 40, 56, 'LB')}
-${box(190, 100, 90, 40, 'oms-svc')}
-${box(310, 100, 110, 40, 'inventory-svc')}
-${db(450, 88, 'Redis lock', '#fecaca')}
-${db(450, 168, 'PostgreSQL', '#dbeafe')}
-${box(570, 100, 100, 40, 'WMS adapter')}
-${arr(94, 118, 118, 118, 'order', 1)}
-${arr(160, 118, 188, 118, '', 2)}
-${arr(280, 118, 308, 118, 'reserve', 3)}
-${arr(420, 118, 448, 118, 'lock', 4)}
-${arr(420, 140, 448, 188, 'persist', 5)}
-${arr(530, 118, 568, 118, 'allocate', 6)}`)
+            html: svg(720, 248,
+                `${box(20, CY - 18, 72, 36, 'shop')}
+${box(108, CY - 30, 40, 60, 'LB', '#e2e8f0')}
+${box(168, CY - 20, 92, 40, 'oms-svc')}
+${box(280, CY - 20, 112, 40, 'inventory-svc')}
+${db(420, ROW_TOP - 4, 'Redis lock', '#fecaca')}
+${db(420, ROW_BOT - 4, 'PostgreSQL', '#dbeafe')}
+${box(536, CY - 20, 100, 40, 'WMS adapter')}
+${hArr(92, 108, CY, 'order', 1)}
+${hArr(148, 168, CY, '', 2)}
+${hArr(260, 280, CY, 'reserve', 3)}
+${hArr(392, 420, ROW_TOP + 20, 'lock', 4)}
+${hArr(392, 420, ROW_BOT + 20, 'persist', 5)}
+${hArr(512, 536, CY, 'allocate', 6)}`)
         }],
         HEALTHCARE: [{
             title: 'FHIR Encounter create',
-            html: svg(860, 260,
-                `<rect width="100%" height="100%" fill="#fafaf8"/>
-${box(24, 100, 70, 36, 'portal')}
-${box(120, 90, 40, 56, 'FHIR GW')}
-${box(190, 100, 110, 40, 'encounter-svc')}
-${box(190, 50, 110, 36, 'patient-svc')}
-${db(330, 88, 'PostgreSQL', '#dbeafe')}
-${kafka(330, 168)}
-${box(450, 160, 100, 40, 'audit-svc')}
-${arr(94, 118, 118, 118, 'POST Enc', 1)}
-${arr(160, 118, 188, 120, '', 2)}
-${arr(245, 100, 245, 86, 'validate', 3)}
-${arr(300, 120, 328, 120, 'save', 4)}
-${arr(300, 140, 328, 188, 'event', 5)}
-${arr(430, 188, 448, 180, 'PHI audit', 6)}`)
+            html: svg(620, 248,
+                `${box(20, CY - 18, 72, 36, 'portal')}
+${box(108, CY - 30, 40, 60, 'FHIR GW', '#e2e8f0')}
+${box(168, CY - 20, 112, 40, 'encounter-svc')}
+${box(168, ROW_TOP, 112, 36, 'patient-svc')}
+${db(300, CY - 32, 'PostgreSQL', '#dbeafe')}
+${kafka(300, ROW_BOT + 6)}
+${box(396, ROW_BOT, 104, 40, 'audit-svc')}
+${hArr(92, 108, CY, 'POST Enc', 1)}
+${hArr(148, 168, CY, '', 2)}
+${vArr(224, ROW_TOP + 36, CY - 20, 'validate', 3)}
+${hArr(280, 300, CY, 'save', 4)}
+${route([{ x: 224, y: CY + 20 }, { x: 224, y: ROW_BOT + 24 }, { x: 300, y: ROW_BOT + 24 }], 'event', 5)}
+${hArr(368, 396, ROW_BOT + 20, 'PHI audit', 6)}`)
         }],
         INSURTECH: [{
             title: 'Submit claim (FNOL)',
-            html: svg(860, 280,
-                `<rect width="100%" height="100%" fill="#fafaf8"/>
-${box(20, 100, 64, 36, 'mobile')}
-${box(110, 90, 40, 56, 'LB')}
-${box(180, 100, 100, 40, 'claim-svc')}
-${box(310, 80, 90, 36, 'policy-svc')}
-${box(310, 140, 90, 36, 'fraud-rules', '#fef3c7')}
-${db(430, 88, 'MongoDB', '#bbf7d0')}
-${box(430, 160, 90, 40, 'S3 docs')}
-${arr(84, 118, 108, 118, 'FNOL', 1)}
-${arr(150, 118, 178, 118, '', 2)}
-${arr(280, 110, 308, 98, 'verify', 3)}
-${arr(280, 130, 308, 158, 'score', 4)}
-${arr(400, 120, 428, 120, 'save', 5)}
-${arr(400, 140, 428, 180, 'upload', 6)}`)
+            html: svg(580, 248,
+                `${box(20, CY - 18, 68, 36, 'mobile')}
+${box(108, CY - 30, 40, 60, 'LB', '#e2e8f0')}
+${box(168, CY - 20, 104, 40, 'claim-svc')}
+${box(292, ROW_TOP, 92, 36, 'policy-svc')}
+${box(292, ROW_BOT, 92, 36, 'fraud-rules', '#fef3c7')}
+${db(404, ROW_TOP - 4, 'MongoDB', '#bbf7d0')}
+${box(404, ROW_BOT, 92, 40, 'S3 docs')}
+${hArr(88, 108, CY, 'FNOL', 1)}
+${hArr(148, 168, CY, '', 2)}
+${route([{ x: 272, y: CY - 8 }, { x: 282, y: CY - 8 }, { x: 282, y: ROW_TOP + 18 }, { x: 292, y: ROW_TOP + 18 }], 'verify', 3)}
+${route([{ x: 272, y: CY + 8 }, { x: 282, y: CY + 8 }, { x: 282, y: ROW_BOT + 18 }, { x: 292, y: ROW_BOT + 18 }], 'score', 4)}
+${hArr(384, 404, ROW_TOP + 20, 'save', 5)}
+${route([{ x: 220, y: CY + 20 }, { x: 220, y: ROW_BOT + 20 }, { x: 404, y: ROW_BOT + 20 }], 'upload', 6)}`)
         }],
         IOT_PLATFORM: [{
             title: 'Telemetry ingest',
-            html: svg(860, 260,
-                `<rect width="100%" height="100%" fill="#fafaf8"/>
-${box(20, 100, 70, 36, 'device')}
-${box(110, 100, 100, 40, 'mqtt-gateway')}
-${box(240, 100, 100, 40, 'ingest-svc')}
-${kafka(370, 108)}
-${box(470, 80, 110, 40, 'stream\nprocessor')}
-${db(610, 78, 'TimescaleDB', '#dbeafe')}
-${box(610, 150, 90, 40, 'alert-svc', '#fecaca')}
-${arr(90, 118, 108, 118, 'MQTT', 1)}
-${arr(210, 118, 238, 118, '', 2)}
-${arr(340, 118, 368, 118, 'publish', 3)}
-${arr(450, 110, 468, 100, 'consume', 4)}
-${arr(580, 100, 608, 100, 'write', 5)}
-${arr(580, 120, 608, 170, 'threshold', 6)}`)
+            html: svg(740, 248,
+                `${box(20, CY - 18, 72, 36, 'device')}
+${box(108, CY - 20, 104, 40, 'mqtt-gateway')}
+${box(232, CY - 20, 104, 40, 'ingest-svc')}
+${kafka(356, CY - 15)}
+${box(452, CY - 20, 112, 40, 'stream\nprocessor')}
+${db(584, ROW_TOP - 4, 'TimescaleDB', '#dbeafe')}
+${box(584, ROW_BOT, 92, 40, 'alert-svc', '#fecaca')}
+${hArr(92, 108, CY, 'MQTT', 1)}
+${hArr(212, 232, CY, '', 2)}
+${hArr(336, 356, CY, 'publish', 3)}
+${hArr(432, 452, CY, 'consume', 4)}
+${hArr(564, 584, ROW_TOP + 20, 'write', 5)}
+${route([{ x: 564, y: CY + 20 }, { x: 564, y: ROW_BOT + 20 }, { x: 584, y: ROW_BOT + 20 }], 'threshold', 6)}`)
         }],
         LOGISTICS: [{
             title: 'Route calculation',
-            html: svg(860, 280,
-                `<rect width="100%" height="100%" fill="#fafaf8"/>
-${box(20, 100, 80, 36, 'dispatcher')}
-${box(130, 90, 40, 56, 'LB')}
-${box(200, 100, 90, 40, 'tms-api')}
-${box(320, 90, 100, 40, 'route-svc')}
-${box(320, 150, 100, 40, 'geo-svc', '#dcfce7')}
-${db(460, 78, 'Neo4j', '#fecaca')}
-${db(460, 168, 'PostGIS', '#dbeafe')}
-${kafka(580, 120)}
-${box(680, 110, 90, 40, 'driver app')}
-${arr(100, 118, 128, 118, 'plan', 1)}
-${arr(170, 118, 198, 118, '', 2)}
-${arr(290, 118, 318, 110, '', 3)}
-${arr(340, 130, 340, 150, 'coords', 4)}
-${arr(420, 110, 458, 100, 'graph', 5)}
-${arr(420, 160, 458, 188, 'roads', 6)}
-${arr(560, 130, 678, 130, 'notify', 7)}`)
+            html: svg(840, 260,
+                `${box(20, CY - 18, 84, 36, 'dispatcher')}
+${box(120, CY - 30, 40, 60, 'LB', '#e2e8f0')}
+${box(180, CY - 20, 92, 40, 'tms-api')}
+${box(292, CY - 20, 104, 40, 'route-svc')}
+${box(292, ROW_BOT, 104, 40, 'geo-svc', '#dcfce7')}
+${db(416, ROW_TOP - 4, 'Neo4j', '#fecaca')}
+${db(416, ROW_BOT - 4, 'PostGIS', '#dbeafe')}
+${kafka(528, CY - 15)}
+${box(624, CY - 20, 92, 40, 'driver app')}
+${hArr(104, 120, CY, 'plan', 1)}
+${hArr(160, 180, CY, '', 2)}
+${hArr(272, 292, CY, '', 3)}
+${vArr(344, CY + 20, ROW_BOT, 'coords', 4)}
+${hArr(396, 416, ROW_TOP + 20, 'graph', 5)}
+${hArr(396, 416, ROW_BOT + 20, 'roads', 6)}
+${hArr(604, 624, CY, 'notify', 7)}`)
         }],
         GOVTECH: [{
             title: 'Citizen application',
-            html: svg(860, 280,
-                `<rect width="100%" height="100%" fill="#fafaf8"/>
-${box(16, 100, 72, 36, 'citizen')}
-${box(110, 90, 40, 56, 'portal')}
-${box(180, 100, 100, 40, 'case-svc')}
-${box(310, 100, 90, 40, 'ESB', '#fef3c7')}
-${box(430, 80, 110, 56, 'legacy\nmainframe', '#e2e8f0')}
-${db(570, 88, 'PostgreSQL', '#dbeafe')}
-${box(570, 160, 90, 40, 'MinIO\ndocs')}
-${arr(88, 118, 108, 118, 'apply', 1)}
-${arr(150, 118, 178, 118, '', 2)}
-${arr(280, 118, 308, 118, 'route', 3)}
-${arr(400, 118, 428, 108, 'MQ', 4)}
-${arr(280, 130, 568, 110, 'store', 5)}
-${arr(280, 150, 568, 180, 'scan', 6)}`)
+            html: svg(720, 260,
+                `${box(20, CY - 18, 76, 36, 'citizen')}
+${box(112, CY - 30, 40, 60, 'portal', '#e2e8f0')}
+${box(172, CY - 20, 104, 40, 'case-svc')}
+${box(296, CY - 20, 92, 40, 'ESB', '#fef3c7')}
+${box(408, CY - 28, 112, 56, 'legacy\nmainframe', '#e2e8f0')}
+${db(540, CY - 32, 'PostgreSQL', '#dbeafe')}
+${box(540, ROW_BOT, 92, 40, 'MinIO\ndocs')}
+${hArr(96, 112, CY, 'apply', 1)}
+${hArr(152, 172, CY, '', 2)}
+${hArr(276, 296, CY, 'route', 3)}
+${hArr(388, 408, CY, 'MQ', 4)}
+${route([{ x: 224, y: CY + 20 }, { x: 224, y: CY + 52 }, { x: 540, y: CY + 52 }, { x: 540, y: CY + 34 }], 'store', 5)}
+${route([{ x: 224, y: CY + 32 }, { x: 224, y: ROW_BOT + 20 }, { x: 540, y: ROW_BOT + 20 }], 'scan', 6)}`)
         }],
         MEDIA_STREAMING: [{
             title: 'Video upload pipeline',
-            html: svg(860, 280,
-                `<rect width="100%" height="100%" fill="#fafaf8"/>
-${box(16, 100, 72, 36, 'creator')}
-${box(110, 90, 40, 56, 'LB')}
-${box(180, 100, 100, 40, 'upload-api')}
-${box(310, 90, 120, 40, 'transcode\norchestrator')}
-${box(460, 70, 80, 36, 'worker')}
-${box(460, 120, 80, 36, 'worker')}
-${box(570, 90, 70, 40, 'S3')}
-${db(670, 78, 'Cassandra', '#bbf7d0')}
-${kafka(670, 160)}
-${box(780, 150, 70, 40, 'reco')}
-${arr(88, 118, 108, 118, 'chunk', 1)}
-${arr(150, 118, 178, 118, '', 2)}
-${arr(280, 118, 308, 110, 'job', 3)}
-${arr(430, 100, 458, 88, '', 4)}
-${arr(430, 130, 458, 138, '', 4)}
-${arr(550, 110, 568, 110, 'store', 5)}
-${arr(640, 110, 668, 100, 'meta', 6)}
-${arr(740, 180, 778, 170, 'event', 7)}`)
+            html: svg(900, 260,
+                `${box(20, CY - 18, 76, 36, 'creator')}
+${box(112, CY - 30, 40, 60, 'LB', '#e2e8f0')}
+${box(172, CY - 20, 104, 40, 'upload-api')}
+${box(296, CY - 20, 120, 40, 'transcode\norchestrator')}
+${box(436, ROW_TOP, 84, 36, 'worker')}
+${box(436, ROW_BOT, 84, 36, 'worker')}
+${box(540, CY - 20, 72, 40, 'S3')}
+${db(632, ROW_TOP - 4, 'Cassandra', '#bbf7d0')}
+${kafka(632, ROW_BOT + 6)}
+${box(728, ROW_BOT, 72, 40, 'reco')}
+${hArr(96, 112, CY, 'chunk', 1)}
+${hArr(152, 172, CY, '', 2)}
+${hArr(276, 296, CY, 'job', 3)}
+${route([{ x: 416, y: CY - 8 }, { x: 426, y: CY - 8 }, { x: 426, y: ROW_TOP + 18 }, { x: 436, y: ROW_TOP + 18 }], '', 4)}
+${route([{ x: 416, y: CY + 8 }, { x: 426, y: CY + 8 }, { x: 426, y: ROW_BOT + 18 }, { x: 436, y: ROW_BOT + 18 }], '', 4)}
+${hArr(520, 540, CY, 'store', 5)}
+${route([{ x: 356, y: CY + 20 }, { x: 356, y: ROW_TOP + 20 }, { x: 632, y: ROW_TOP + 20 }], 'meta', 6)}
+${hArr(704, 728, ROW_BOT + 20, 'event', 7)}`)
         }]
     };
 
@@ -369,20 +410,20 @@ ${arr(740, 180, 778, 170, 'event', 7)}`)
         const host = archDiagramZoomHost(block);
         if (!host) return ZOOM_DEFAULT;
         const level = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, scale));
-        const svg = host.querySelector('.arch-sketch-svg');
-        if (!svg) return level;
+        const svgEl = host.querySelector('.arch-sketch-svg');
+        if (!svgEl) return level;
         host.dataset.zoom = String(level);
         const outer = host.closest('.arch-diagram-block');
         if (outer) outer.dataset.zoom = String(level);
         const inLightbox = !!host.closest('#arch-diagram-lightbox');
         const baseWidth = inLightbox ? 720 : 520;
         const baseHeight = inLightbox ? 420 : 220;
-        svg.style.minWidth = `${baseWidth * level}px`;
-        svg.style.maxHeight = inLightbox ? 'none' : `${baseHeight * level}px`;
+        svgEl.style.minWidth = `${baseWidth * level}px`;
+        svgEl.style.maxHeight = inLightbox ? 'none' : `${baseHeight * level}px`;
         if (inLightbox) {
-            svg.style.height = `${baseHeight * level}px`;
+            svgEl.style.height = `${baseHeight * level}px`;
         } else {
-            svg.style.height = '';
+            svgEl.style.height = '';
         }
         const pct = Math.round(level * 100) + '%';
         const labelRoot = outer || host.closest('#arch-diagram-lightbox') || host;

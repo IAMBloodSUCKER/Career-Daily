@@ -114,7 +114,8 @@ public record GameEngineSnapshot(
             boolean fromPlayer,
             String taskId,
             boolean read,
-            long timestamp
+            long timestamp,
+            boolean channel
     ) {
     }
 

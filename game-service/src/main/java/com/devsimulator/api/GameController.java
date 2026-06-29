@@ -141,7 +141,7 @@ public class GameController {
                 }
             }
         }
-        var result = engine.arriveAtDesk(type, roomActions);
+        var result = engine.arriveAtDesk(type, roomActions, parseCommuteMinutesLate(body), parseExcuse(body));
         return ResponseEntity.ok(toResponse(session, engine, result));
     }
 
@@ -360,5 +360,29 @@ public class GameController {
         } catch (Exception e) {
             return ProjectType.E_COMMERCE;
         }
+    }
+
+    private static Integer parseCommuteMinutesLate(Map<String, Object> body) {
+        Object raw = body.get("commuteMinutesLate");
+        if (raw == null) {
+            return null;
+        }
+        if (raw instanceof Number n) {
+            return Math.max(0, Math.min(180, n.intValue()));
+        }
+        try {
+            return Math.max(0, Math.min(180, Integer.parseInt(String.valueOf(raw))));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static String parseExcuse(Map<String, Object> body) {
+        Object raw = body.get("excuse");
+        if (raw == null) {
+            return null;
+        }
+        String s = String.valueOf(raw).trim();
+        return s.isEmpty() ? null : s.substring(0, Math.min(120, s.length()));
     }
 }

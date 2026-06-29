@@ -3,33 +3,18 @@ const nextUrl = params.get('next') || '/play.html';
 const initialTab = params.get('tab') === 'register' ? 'register' : 'login';
 const AUTH_API = window.__AUTH_API__ || '/api/auth';
 
-const BLOCKED_EMAIL_DOMAINS = new Set([
-    'gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com', 'live.com', 'msn.com',
-    'yahoo.com', 'ymail.com', 'icloud.com', 'me.com', 'mac.com', 'proton.me', 'protonmail.com'
-]);
-
-const RUSSIAN_EMAIL_DOMAINS = new Set([
-    'mail.ru', 'inbox.ru', 'bk.ru', 'list.ru', 'internet.ru',
-    'yandex.ru', 'ya.ru', 'yandex.com', 'rambler.ru', 'lenta.ru', 'pochta.ru'
-]);
-
 const tabLogin = document.getElementById('tab-login');
 const tabRegister = document.getElementById('tab-register');
 const loginForm = document.getElementById('login-form');
 const registerForm = document.getElementById('register-form');
 const captchaWrap = document.getElementById('reg-captcha-wrap');
-const regPhoneInput = document.getElementById('reg-phone');
-const regSendSmsBtn = document.getElementById('reg-send-sms');
-const regSmsWrap = document.getElementById('reg-sms-wrap');
-const regSmsHint = document.getElementById('reg-sms-hint');
-const regSmsCodeInput = document.getElementById('reg-sms-code');
 
-let captchaState = { provider: 'pending', captchaId: null, siteKey: null, question: null };
+let captchaState = { provider: 'pending', captchaId: null, siteKey: null, question: null, kind: null };
 let captchaLoadPromise = null;
-let smsRequired = true;
-let smsVerificationId = null;
-let smsResendTimer = null;
-let smsResendLeft = 0;
+let legalConfig = {
+    policyVersion: '2026-06-26',
+    termsVersion: '2026-06-26'
+};
 
 function showCaptchaLoading() {
     if (!captchaWrap) return;
@@ -54,113 +39,42 @@ function showCaptchaLoadError(message) {
 
 function showTab(tab) {
     const isLogin = tab === 'login';
+    const isRegister = tab === 'register';
     tabLogin.classList.toggle('active', isLogin);
-    tabRegister.classList.toggle('active', !isLogin);
+    tabRegister.classList.toggle('active', isRegister);
     loginForm.classList.toggle('hidden', !isLogin);
-    registerForm.classList.toggle('hidden', isLogin);
+    registerForm.classList.toggle('hidden', !isRegister);
     hideError('auth-error');
     hideError('reg-error');
-    if (!isLogin) {
+    if (isRegister) {
         loadCaptchaConfig();
-        loadSmsConfig();
+        loadLegalConfig();
     }
 }
 
-function resetSmsVerification() {
-    smsVerificationId = null;
-    if (regSmsCodeInput) regSmsCodeInput.value = '';
-    regSmsWrap?.classList.add('hidden');
-    regSmsHint?.classList.add('hidden');
-    if (regSmsHint) regSmsHint.textContent = '';
-}
-
-function updateSmsSendButton() {
-    if (!regSendSmsBtn) return;
-    if (!smsRequired) {
-        regSendSmsBtn.classList.add('hidden');
-        return;
-    }
-    regSendSmsBtn.classList.remove('hidden');
-    if (smsResendLeft > 0) {
-        regSendSmsBtn.disabled = true;
-        regSendSmsBtn.textContent = `Повтор через ${smsResendLeft} с`;
-    } else {
-        regSendSmsBtn.disabled = false;
-        regSendSmsBtn.textContent = smsVerificationId ? 'Отправить снова' : 'Получить код';
-    }
-}
-
-function startSmsResendCountdown(seconds) {
-    smsResendLeft = seconds;
-    updateSmsSendButton();
-    if (smsResendTimer) clearInterval(smsResendTimer);
-    smsResendTimer = setInterval(() => {
-        smsResendLeft -= 1;
-        if (smsResendLeft <= 0) {
-            smsResendLeft = 0;
-            clearInterval(smsResendTimer);
-            smsResendTimer = null;
-        }
-        updateSmsSendButton();
-    }, 1000);
-}
-
-async function loadSmsConfig() {
-    try {
-        const res = await fetch(AUTH_API + '/sms-config');
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const cfg = await res.json();
-        smsRequired = cfg.required !== false;
-    } catch {
-        smsRequired = true;
-    }
-    updateSmsSendButton();
-    if (!smsRequired) {
-        resetSmsVerification();
-    }
-}
-
-async function sendSmsCode() {
-    hideError('reg-error');
-    const phone = normalizePhone(regPhoneInput?.value);
-    if (!phone) {
-        showError('reg-error', 'Укажите корректный номер телефона +7');
-        return;
-    }
-    regSendSmsBtn.disabled = true;
-    regSendSmsBtn.textContent = 'Отправка…';
-    try {
-        const res = await fetch(AUTH_API + '/phone/send-code', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone })
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-            showError('reg-error', data.message || 'Не удалось отправить SMS');
-            updateSmsSendButton();
-            return;
-        }
-        smsVerificationId = data.verificationId;
-        regSmsWrap?.classList.remove('hidden');
-        regSmsCodeInput?.focus();
-        if (regSmsHint) {
-            regSmsHint.classList.remove('hidden');
-            regSmsHint.textContent = data.devHint
-                || `Код отправлен на ${phone}. Действует ${Math.round((data.expiresInSeconds || 600) / 60)} мин.`;
-        }
-        startSmsResendCountdown(data.resendAfterSeconds || 60);
-    } catch {
-        showError('reg-error', 'Ошибка сети при отправке SMS');
-        updateSmsSendButton();
-    }
-}
-
-function showError(id, message) {
+function showError(id, message, options = {}) {
     const el = document.getElementById(id);
     if (!el) return;
     el.classList.remove('hidden');
-    el.innerHTML = `<div class="char-error-item">⚠ ${message}</div>`;
+    let html = `<div class="char-error-item">⚠ ${message}</div>`;
+    if (options.loginHint) {
+        html += `<div class="char-error-item auth-error-action">
+            <button type="button" class="btn btn-secondary auth-switch-login-btn">Войти с этим логином</button>
+        </div>`;
+    }
+    el.innerHTML = html;
+    el.querySelector('.auth-switch-login-btn')?.addEventListener('click', () => {
+        showTab('login');
+        const loginInput = document.getElementById('login-input');
+        const username = document.getElementById('reg-username')?.value.trim();
+        if (loginInput && username) loginInput.value = username;
+        document.getElementById('login-password')?.focus();
+    });
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function isUsernameTakenMessage(message) {
+    return typeof message === 'string' && message.includes('занят');
 }
 
 function hideError(id) {
@@ -170,34 +84,34 @@ function hideError(id) {
     el.innerHTML = '';
 }
 
-function normalizePhone(raw) {
-    const digits = (raw || '').replace(/\D/g, '');
-    let d = digits;
-    if (d.length === 11 && d.startsWith('8')) d = '7' + d.slice(1);
-    if (d.length === 10) d = '7' + d;
-    if (d.length !== 11 || !d.startsWith('7')) {
-        return null;
-    }
-    return '+' + d;
-}
-
-function validateRussianEmail(email) {
-    if (!email) return null;
-    const normalized = email.trim().toLowerCase();
-    const at = normalized.lastIndexOf('@');
-    if (at < 1) return 'Некорректный email';
-    const domain = normalized.slice(at + 1);
-    if (BLOCKED_EMAIL_DOMAINS.has(domain)) {
-        return 'Зарубежная почта недоступна. Используйте .ru / Яндекс / Mail.ru или оставьте поле пустым';
-    }
-    if (RUSSIAN_EMAIL_DOMAINS.has(domain) || domain.endsWith('.ru') || domain.endsWith('.su')) {
-        return null;
-    }
-    return 'Допустима только российская почта или регистрация только по телефону +7';
-}
-
 function storeAuthResponse(data) {
     if (data?.token) setAuthToken(data.token);
+}
+
+async function loadLegalConfig() {
+    try {
+        const res = await fetch(AUTH_API + '/legal-config');
+        if (!res.ok) return;
+        legalConfig = await res.json();
+    } catch {
+        /* fallback defaults */
+    }
+}
+
+function renderLegacyMathCaptcha(cfg, onRefresh) {
+    captchaState.kind = 'math';
+    captchaWrap.innerHTML = `
+        <label class="field-label">Проверка <span class="field-required">*</span></label>
+        <div class="captcha-math-row">
+            <span class="captcha-math-q" id="captcha-question">${cfg.question || '…'}</span>
+            <input id="reg-captcha-answer" type="text" class="text-input captcha-math-input"
+                   inputmode="numeric" autocomplete="off" required placeholder="Ответ">
+            <button type="button" id="captcha-refresh" class="captcha-refresh-btn" title="Другая задача">↻</button>
+        </div>`;
+    document.getElementById('captcha-refresh')?.addEventListener('click', e => {
+        e.preventDefault();
+        onRefresh();
+    });
 }
 
 function ensureYandexCaptchaScript() {
@@ -214,11 +128,14 @@ function renderCaptcha(cfg) {
         provider: cfg.provider || 'none',
         captchaId: cfg.captchaId || null,
         siteKey: cfg.siteKey || null,
-        question: cfg.question || null
+        question: cfg.question || null,
+        kind: cfg.kind || null
     };
     if (!captchaWrap) return;
 
     captchaWrap.innerHTML = '';
+    if (window.CaptchaWidgets) CaptchaWidgets.reset();
+
     if (captchaState.provider === 'none') {
         captchaWrap.classList.add('hidden');
         return;
@@ -227,18 +144,16 @@ function renderCaptcha(cfg) {
     captchaWrap.classList.remove('hidden');
 
     if (captchaState.provider === 'internal') {
-        captchaWrap.innerHTML = `
-            <label class="field-label">Проверка <span class="field-required">*</span></label>
-            <div class="captcha-math-row">
-                <span class="captcha-math-q" id="captcha-question">${captchaState.question || '…'}</span>
-                <input id="reg-captcha-answer" type="text" class="text-input captcha-math-input"
-                       inputmode="numeric" autocomplete="off" required placeholder="Ответ">
-                <button type="button" id="captcha-refresh" class="captcha-refresh-btn" title="Другая задача">↻</button>
-            </div>`;
-        document.getElementById('captcha-refresh')?.addEventListener('click', e => {
-            e.preventDefault();
-            loadCaptchaConfig();
-        });
+        const onRefresh = () => loadCaptchaConfig(true);
+        if (cfg.kind === 'slider') {
+            CaptchaWidgets.renderSlider(captchaWrap, cfg, onRefresh);
+            return;
+        }
+        if (cfg.kind === 'image' && cfg.tiles?.length) {
+            CaptchaWidgets.renderImage(captchaWrap, cfg, onRefresh);
+            return;
+        }
+        renderLegacyMathCaptcha(cfg, onRefresh);
         return;
     }
 
@@ -258,9 +173,7 @@ async function loadCaptchaConfig(force = false) {
         showCaptchaLoading();
         try {
             const res = await fetch(AUTH_API + '/captcha-config');
-            if (!res.ok) {
-                throw new Error('HTTP ' + res.status);
-            }
+            if (!res.ok) throw new Error('HTTP ' + res.status);
             const cfg = await res.json();
             if (!cfg || typeof cfg.provider !== 'string') {
                 throw new Error('invalid config');
@@ -268,7 +181,7 @@ async function loadCaptchaConfig(force = false) {
             renderCaptcha(cfg);
             return cfg;
         } catch {
-            captchaState = { provider: 'unknown', captchaId: null, siteKey: null, question: null };
+            captchaState = { provider: 'unknown', captchaId: null, siteKey: null, question: null, kind: null };
             showCaptchaLoadError('Не удалось загрузить капчу. Проверьте, что сервер запущен.');
             throw new Error('captcha-load-failed');
         }
@@ -293,18 +206,19 @@ function captchaPayload() {
         return { smartCaptchaToken: token || null };
     }
     if (captchaState.provider === 'internal') {
-        return {
-            captchaId: captchaState.captchaId,
-            captchaAnswer: document.getElementById('reg-captcha-answer')?.value.trim() || null
-        };
+        let answer = null;
+        if (captchaState.kind === 'math') {
+            answer = document.getElementById('reg-captcha-answer')?.value.trim() || null;
+        } else {
+            answer = CaptchaWidgets.getAnswer(captchaState.kind);
+        }
+        return { captchaId: captchaState.captchaId, captchaAnswer: answer };
     }
     return {};
 }
 
 tabLogin.addEventListener('click', () => showTab('login'));
 tabRegister.addEventListener('click', () => showTab('register'));
-regSendSmsBtn?.addEventListener('click', sendSmsCode);
-regPhoneInput?.addEventListener('input', () => resetSmsVerification());
 showTab(initialTab);
 
 (async () => {
@@ -340,21 +254,18 @@ registerForm.addEventListener('submit', async e => {
     e.preventDefault();
     hideError('reg-error');
 
-    const phone = normalizePhone(document.getElementById('reg-phone').value);
-    if (!phone) {
-        showError('reg-error', 'Укажите корректный номер телефона +7');
-        return;
-    }
-
-    const emailRaw = document.getElementById('reg-email').value.trim();
-    const emailErr = validateRussianEmail(emailRaw);
-    if (emailErr) {
-        showError('reg-error', emailErr);
+    const username = document.getElementById('reg-username').value.trim();
+    if (username.length < 3) {
+        showError('reg-error', 'Логин — минимум 3 символа');
         return;
     }
 
     if (!document.getElementById('reg-consent').checked) {
         showError('reg-error', 'Необходимо согласие на обработку персональных данных');
+        return;
+    }
+    if (!document.getElementById('reg-terms').checked) {
+        showError('reg-error', 'Необходимо принять пользовательское соглашение');
         return;
     }
 
@@ -365,8 +276,13 @@ registerForm.addEventListener('submit', async e => {
         return;
     }
 
-    if (captchaState.provider === 'internal' && !document.getElementById('reg-captcha-answer')?.value.trim()) {
-        showError('reg-error', 'Решите задачу капчи');
+    if (captchaState.provider === 'internal' && !captchaPayload().captchaAnswer) {
+        const msg = captchaState.kind === 'slider'
+            ? 'Перетащите стрелку на нужную метку'
+            : captchaState.kind === 'math'
+                ? 'Решите задачу капчи'
+                : 'Выберите нужные картинки';
+        showError('reg-error', msg);
         return;
     }
 
@@ -378,38 +294,26 @@ registerForm.addEventListener('submit', async e => {
         }
     }
 
-    if (smsRequired) {
-        if (!smsVerificationId) {
-            showError('reg-error', 'Сначала получите SMS-код на телефон');
-            return;
-        }
-        const smsCode = regSmsCodeInput?.value.trim().replace(/\s/g, '');
-        if (!smsCode) {
-            showError('reg-error', 'Введите код из SMS');
-            return;
-        }
-    }
-
     try {
         const res = await fetch(AUTH_API + '/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                phone,
-                email: emailRaw || null,
-                username: document.getElementById('reg-username').value.trim(),
+                username,
                 displayName: document.getElementById('reg-display').value.trim(),
                 password: document.getElementById('reg-password').value,
                 personalDataConsent: true,
-                smsVerificationId: smsRequired ? smsVerificationId : null,
-                smsCode: smsRequired ? regSmsCodeInput?.value.trim().replace(/\s/g, '') : null,
+                termsAccepted: true,
+                policyVersion: legalConfig.policyVersion || null,
+                termsVersion: legalConfig.termsVersion || null,
                 ...captchaPayload()
             })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-            showError('reg-error', data.message || 'Не удалось зарегистрироваться');
-            if (captchaState.provider !== 'none') loadCaptchaConfig();
+            const msg = data.message || 'Не удалось зарегистрироваться';
+            showError('reg-error', msg, { loginHint: isUsernameTakenMessage(msg) });
+            if (captchaState.provider !== 'none') loadCaptchaConfig(true);
             return;
         }
         storeAuthResponse(data);

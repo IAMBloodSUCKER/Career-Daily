@@ -2,6 +2,9 @@
 let fpRoom = 'elevator';
 let fpRoomActions = [];
 let fpArrivalType = 'ON_TIME';
+let fpWakeArrival = false;
+let fpWalkExtraMinutes = 0;
+let morningCommuteScenario = null;
 let fpMoving = false;
 let fpGameTime = '08:55';
 let fpDoneHotspots = new Set();
@@ -67,9 +70,9 @@ function fpActionNarrative(action, before, after, minutes) {
         case 'greet':
             return `«Привет! Первый день?» ${tick}. Daily в 11:30 — успеете.`;
         case 'kitchen_chat':
-            return `💬 Поболтали у кофемашины про релиз. ${tick}. К столу с опозданием — Team Lead запомнит.`;
+            return `💬 Поболтали у кофемашины про релиз. ${tick}. Ещё +12 мин — к 9:00 лучше не тянуть.`;
         case 'slow':
-            return `👜 Расставили вещи у стола. ${tick}. Daily в 11:30 — пара минут опоздания.`;
+            return `👜 Расставили вещи у стола. ${tick}. Daily в 11:30 — времени ещё полно.`;
         default:
             return tick;
     }
@@ -114,7 +117,7 @@ const FP_ROOMS = {
     elevator: {
         name: 'Лифт · 3 этаж',
         time: '08:55',
-        intro: 'Лифт на 3-м этаже. Нажмите стрелку внизу — выйти в open-space. Daily через 5 минут.',
+        intro: 'Вы на 3-м этаже. Стрелка внизу — в open-space. Успейте устроиться до начала рабочего дня.',
         exits: { forward: 'entrance' },
         hotspots: [
             { id: 'mirror', x: 35, y: 48, label: 'Зеркало', type: 'inspect',
@@ -143,7 +146,7 @@ const FP_ROOMS = {
             { id: 'coffee', x: 32, y: 55, label: 'Кофе', type: 'action', action: 'coffee',
                 text: 'Кофемашина — минута на americano.' },
             { id: 'kitchen-chat', x: 62, y: 58, label: 'Поболтать', type: 'action', action: 'kitchen_chat',
-                text: 'Коллеги у кофемашины — можно поболтать, но daily не ждёт.', arrival: 'LATE' }
+                text: 'Коллеги у кофемашины — можно поболтать, но время идёт.' }
         ]
     },
     openspace: {
@@ -177,9 +180,9 @@ const FP_ROOMS = {
         hotspots: [
             { id: 'power', x: 50, y: 42, label: 'Включить DevOS', type: 'boot' },
             { id: 'phone', x: 84, y: 34, label: 'Телефон', type: 'phone',
-                text: 'Slack: «Daily через 1 мин». Мария: «JIRA-142 срочно 🙏».' },
+                text: 'Slack: «Stand-up в 11:30». Мария: «JIRA-142 срочно 🙏».' },
             { id: 'bag', x: 18, y: 68, label: 'Вещи', type: 'action', action: 'slow',
-                text: 'Расставили кружку. Daily уже начался — пара минут опоздания.', arrival: 'LATE' }
+                text: 'Расставили кружку и блокнот — можно включать DevOS.' }
         ]
     }
 };
@@ -321,10 +324,17 @@ function travelTo(roomId, dir = 'forward') {
 
 function fpElevatorLabel(key) {
     const fallbacks = {
+        'elevator.ride.call': 'Вы в лифте на 1-м этаже. Нажмите кнопку ниже, чтобы поехать на 3-й этаж (Engineering).',
+        'elevator.ride.cta': '▲ 3 этаж — поехать',
+        'elevator.ride.hint': 'Клавиши 3 или Enter — тоже сработают',
+        'elevator.ride.departing': 'Отправляемся…',
         'elevator.ride.closing': 'Двери закрываются…',
-        'elevator.ride.going': '⬆ 3 этаж · Engineering',
-        'elevator.ride.arrived': '3 этаж — можно выходить',
-        'elevator.ride.skip': 'Нажмите — пропустить'
+        'elevator.ride.going': '⬆ Едем на 3 этаж · Engineering',
+        'elevator.ride.arrived': '3 этаж — двери открываются',
+        'elevator.ride.skip': 'Enter или клик по экрану — пропустить',
+        'elevator.ride.exit': '3 этаж · Engineering. Двери открыты — выходите в open-space.',
+        'elevator.ride.exitCta': '↓ Выйти из лифта',
+        'elevator.ride.exitHint': 'Enter или клик по проходу — выйти'
     };
     if (typeof t === 'function') {
         const v = t(key);
@@ -334,16 +344,102 @@ function fpElevatorLabel(key) {
 }
 
 let elevatorRideCleanup = null;
+let elevatorCallHandler = null;
+let elevatorExitHandler = null;
+let elevatorHintRestore = null;
+let elevatorRideTimers = [];
+let elevatorExitPhaseActive = false;
 
-function cleanupElevatorRide() {
-    if (elevatorRideCleanup) {
-        elevatorRideCleanup();
-        elevatorRideCleanup = null;
-    }
+function setElevatorHudMode(active, phase) {
+    const hud = document.querySelector('.fp-hud');
+    const wrap = document.querySelector('.fp-stage-wrap');
+    hud?.classList.toggle('fp-hud-elevator', active);
+    wrap?.classList.toggle('fp-elevator-active', active);
+    hud?.classList.toggle('fp-hud-elevator-waiting', active && phase === 'waiting');
+    hud?.classList.toggle('fp-hud-elevator-riding', active && phase === 'riding');
+    hud?.classList.toggle('fp-hud-elevator-exit', active && phase === 'exit');
 }
 
-/** Анимация: двери закрываются → едем 1→2→3 → двери открываются */
-function playElevatorArrival(onDone) {
+function setElevatorHint(text) {
+    const hintEl = document.getElementById('fp-hint');
+    if (!hintEl) return;
+    if (elevatorHintRestore == null) elevatorHintRestore = hintEl.textContent;
+    hintEl.textContent = text;
+    hintEl.classList.add('fp-hint-elevator');
+}
+
+function renderElevatorHudAction(label, onClick) {
+    const choices = document.getElementById('fp-choices');
+    if (!choices) return;
+    choices.innerHTML = '';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'fp-elevator-hud-btn';
+    btn.className = 'fp-choice-btn fp-elevator-hud-btn';
+    btn.textContent = label;
+    btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClick();
+    });
+    choices.appendChild(btn);
+}
+
+function clearElevatorHudAction() {
+    const choices = document.getElementById('fp-choices');
+    if (choices?.querySelector('#fp-elevator-hud-btn')) choices.innerHTML = '';
+}
+
+function detachElevatorExitHandlers() {
+    if (!elevatorExitHandler) return;
+    const { overlay, portal, onKey } = elevatorExitHandler;
+    portal?.removeEventListener('click', elevatorExitHandler.onPortal);
+    overlay?.removeEventListener('click', elevatorExitHandler.onOverlay);
+    if (onKey) document.removeEventListener('keydown', onKey);
+    elevatorExitHandler = null;
+}
+
+function detachElevatorCallHandlers() {
+    if (!elevatorCallHandler) return;
+    const { overlay, btn, cta, onKey } = elevatorCallHandler;
+    overlay?.removeEventListener('click', elevatorCallHandler.onOverlay);
+    btn?.removeEventListener('click', elevatorCallHandler.onBtn);
+    cta?.removeEventListener('click', elevatorCallHandler.onCta);
+    if (onKey) document.removeEventListener('keydown', onKey);
+    elevatorCallHandler = null;
+}
+
+function restoreElevatorUiHint() {
+    const hintEl = document.getElementById('fp-hint');
+    if (hintEl && elevatorHintRestore != null) {
+        hintEl.textContent = elevatorHintRestore;
+        elevatorHintRestore = null;
+    }
+    hintEl?.classList.remove('fp-hint-elevator');
+    clearElevatorHudAction();
+    setElevatorHudMode(false);
+    document.getElementById('fp-elevator-cta')?.classList.add('hidden');
+    document.getElementById('fp-elevator-ride')?.classList.remove('fp-elevator-exit');
+    document.getElementById('fp-elevator-exit-view')?.setAttribute('aria-hidden', 'true');
+}
+
+function cleanupElevatorRide() {
+    detachElevatorCallHandlers();
+    detachElevatorExitHandlers();
+    elevatorRideTimers.forEach(id => clearTimeout(id));
+    elevatorRideTimers = [];
+    elevatorExitPhaseActive = false;
+    restoreElevatorUiHint();
+    if (elevatorRideCleanup) {
+        elevatorRideCleanup = null;
+    }
+    OfficeAudio?.stopElevatorRideHum?.();
+    document.getElementById('fp-elevator-cabin')?.classList.remove('fp-elevator-doors-closed');
+    document.getElementById('fp-elevator-ride')?.classList.remove('fp-elevator-exit');
+}
+
+/** Ждём, пока игрок нажмёт кнопку в HUD */
+function showElevatorCallPanel(onDone) {
     cleanupElevatorRide();
 
     const overlay = document.getElementById('fp-elevator-ride');
@@ -351,20 +447,211 @@ function playElevatorArrival(onDone) {
     const floorEl = document.getElementById('fp-elevator-floor');
     const statusEl = document.getElementById('fp-elevator-status');
     const skipEl = document.getElementById('fp-elevator-skip');
-    if (!overlay || !cabin || !floorEl || !statusEl) {
-        onDone?.();
-        return;
-    }
+    const callBtn = document.querySelector('.fp-elevator-btn--call[data-floor="3"]');
+    const ctaBtn = document.getElementById('fp-elevator-cta');
 
     fpMoving = true;
     document.getElementById('fp-nav-arrows')?.classList.add('hidden');
     document.getElementById('fp-hotspots')?.classList.add('hidden');
-    document.getElementById('fp-narrative').textContent = '…';
+
+    const callText = fpElevatorLabel('elevator.ride.call');
+    const ctaText = fpElevatorLabel('elevator.ride.cta');
+    const hintText = fpElevatorLabel('elevator.ride.hint');
+
+    document.getElementById('fp-narrative').textContent = callText;
+    document.getElementById('fp-location').textContent = 'Лифт · 1 этаж';
+    setElevatorHint(hintText);
+    setElevatorHudMode(true, 'waiting');
+    renderElevatorHudAction(ctaText, () => startRide());
+
+    if (overlay && cabin) {
+        overlay.classList.remove('hidden', 'fp-elevator-fadeout', 'fp-elevator-doors-closed');
+        overlay.classList.add('fp-elevator-waiting');
+        overlay.setAttribute('aria-hidden', 'false');
+        cabin.classList.remove('fp-elevator-riding', 'fp-elevator-doors-closed');
+    }
+    if (floorEl) floorEl.textContent = '1';
+    if (statusEl) statusEl.textContent = callText;
+    if (skipEl) skipEl.textContent = '';
+    if (ctaBtn) ctaBtn.classList.add('hidden');
+    if (callBtn) {
+        callBtn.disabled = false;
+        callBtn.classList.remove('fp-elevator-btn--lit');
+    }
+
+    unlockOfficeAudio();
+
+    let started = false;
+    function startRide() {
+        if (started) return;
+        started = true;
+        detachElevatorCallHandlers();
+        clearElevatorHudAction();
+        setElevatorHudMode(true, 'riding');
+        if (callBtn) {
+            callBtn.classList.add('fp-elevator-btn--lit');
+            callBtn.disabled = true;
+        }
+        OfficeAudio?.playElevatorButtonPress?.();
+        if (statusEl) statusEl.textContent = fpElevatorLabel('elevator.ride.departing');
+        document.getElementById('fp-narrative').textContent = fpElevatorLabel('elevator.ride.departing');
+        setTimeout(() => playElevatorRide(onDone), 420);
+    }
+
+    const onBtn = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        startRide();
+    };
+    const onOverlay = (e) => {
+        if (e.target.closest('.fp-elevator-btn--call') || e.target.closest('#fp-elevator-cta')) return;
+        e.stopPropagation();
+    };
+    const onKey = (e) => {
+        if (e.key === '3' || e.key === 'Enter') {
+            e.preventDefault();
+            startRide();
+        }
+    };
+
+    callBtn?.addEventListener('click', onBtn);
+    overlay?.addEventListener('click', onOverlay);
+    document.addEventListener('keydown', onKey);
+    elevatorCallHandler = { overlay, btn: callBtn, cta: ctaBtn, onBtn, onCta: onBtn, onOverlay, onKey, startRide };
+}
+
+function finishElevatorOverlay(onDone) {
+    const overlay = document.getElementById('fp-elevator-ride');
+    const cabin = document.getElementById('fp-elevator-cabin');
+    elevatorRideTimers.forEach(id => clearTimeout(id));
+    elevatorRideTimers = [];
+    elevatorExitPhaseActive = false;
+    detachElevatorExitHandlers();
+    OfficeAudio?.stopElevatorRideHum?.();
+    cabin?.classList.remove('fp-elevator-riding', 'fp-elevator-doors-closed');
+    overlay?.classList.add('fp-elevator-fadeout');
+    overlay?.classList.remove('fp-elevator-exit');
+    setTimeout(() => {
+        overlay?.classList.add('hidden');
+        overlay?.classList.remove('fp-elevator-fadeout', 'fp-elevator-doors-closed', 'fp-elevator-waiting', 'fp-elevator-exit');
+        overlay?.setAttribute('aria-hidden', 'true');
+        restoreElevatorUiHint();
+        fpMoving = false;
+        elevatorRideCleanup = null;
+        onDone?.();
+    }, 420);
+}
+
+/** Двери открыты — ждём, пока игрок выйдет */
+function showElevatorExitPhase(onDone) {
+    if (elevatorExitPhaseActive) return;
+    elevatorExitPhaseActive = true;
+
+    const overlay = document.getElementById('fp-elevator-ride');
+    const cabin = document.getElementById('fp-elevator-cabin');
+    const floorEl = document.getElementById('fp-elevator-floor');
+    const statusEl = document.getElementById('fp-elevator-status');
+    const skipEl = document.getElementById('fp-elevator-skip');
+    const exitView = document.getElementById('fp-elevator-exit-view');
+    const portal = document.getElementById('fp-elevator-exit-portal');
+    const narrEl = document.getElementById('fp-narrative');
+    const locEl = document.getElementById('fp-location');
+
+    detachElevatorCallHandlers();
+    if (elevatorRideCleanup?.onSkip) {
+        overlay?.removeEventListener('click', elevatorRideCleanup.onSkip);
+        document.removeEventListener('keydown', elevatorRideCleanup.onKeySkip);
+    }
+    elevatorRideCleanup = null;
+
+    if (floorEl) floorEl.textContent = '3';
+    overlay?.classList.remove('fp-elevator-waiting', 'fp-elevator-doors-closed');
+    cabin?.classList.remove('fp-elevator-riding', 'fp-elevator-doors-closed');
+    overlay?.classList.add('fp-elevator-exit');
+    exitView?.setAttribute('aria-hidden', 'false');
+
+    const exitText = fpElevatorLabel('elevator.ride.exit');
+    const exitCta = fpElevatorLabel('elevator.ride.exitCta');
+    const exitHint = fpElevatorLabel('elevator.ride.exitHint');
+    const portalLabel = exitCta.replace(/^↓\s*/, '');
+
+    if (narrEl) narrEl.textContent = exitText;
+    if (locEl) locEl.textContent = 'Лифт · 3 этаж';
+    if (statusEl) statusEl.textContent = exitText;
+    if (skipEl) skipEl.textContent = '';
+    if (portal) {
+        const labelEl = portal.querySelector('.fp-elevator-exit-portal-label');
+        if (labelEl) labelEl.textContent = portalLabel;
+    }
+
+    setElevatorHudMode(true, 'exit');
+    setElevatorHint(exitHint);
+    renderElevatorHudAction(exitCta, () => leaveElevator());
+
+    let left = false;
+    function leaveElevator() {
+        if (left) return;
+        left = true;
+        finishElevatorOverlay(onDone);
+    }
+
+    const onPortal = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        OfficeAudio?.playElevatorDoorsOpen?.();
+        leaveElevator();
+    };
+    const onOverlayExit = (e) => {
+        if (!e.target.closest('.fp-elevator-exit-portal') && !e.target.closest('.fp-elevator-exit-view')) return;
+        if (e.target.closest('.fp-elevator-exit-portal')) return;
+        if (e.target.closest('.fp-elevator-exit-blur')) onPortal(e);
+    };
+    const onKey = (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            leaveElevator();
+        }
+    };
+
+    portal?.addEventListener('click', onPortal);
+    exitView?.addEventListener('click', onPortal);
+    document.addEventListener('keydown', onKey);
+    elevatorExitHandler = { overlay, portal, onPortal, onOverlay: onOverlayExit, onKey };
+    elevatorRideCleanup = leaveElevator;
+}
+
+/** Анимация после нажатия: двери → 1→2→3 → открытие → выход */
+function playElevatorRide(onDone) {
+
+    const overlay = document.getElementById('fp-elevator-ride');
+    const cabin = document.getElementById('fp-elevator-cabin');
+    const floorEl = document.getElementById('fp-elevator-floor');
+    const statusEl = document.getElementById('fp-elevator-status');
+    const skipEl = document.getElementById('fp-elevator-skip');
+    const narrEl = document.getElementById('fp-narrative');
+    const locEl = document.getElementById('fp-location');
+
+    fpMoving = true;
+    document.getElementById('fp-nav-arrows')?.classList.add('hidden');
+    document.getElementById('fp-hotspots')?.classList.add('hidden');
+    setElevatorHudMode(true, 'riding');
+    clearElevatorHudAction();
+
+    const closingText = fpElevatorLabel('elevator.ride.closing');
+    const goingText = fpElevatorLabel('elevator.ride.going');
+    const arrivedText = fpElevatorLabel('elevator.ride.arrived');
+    const skipText = fpElevatorLabel('elevator.ride.skip');
+
+    if (narrEl) narrEl.textContent = closingText;
+    if (locEl) locEl.textContent = 'Лифт · едем на 3 этаж';
+    setElevatorHint(skipText);
 
     const timers = [];
-    let finished = false;
+    elevatorRideTimers = timers;
+    let exitStarted = false;
 
     const setFloor = (n) => {
+        if (!floorEl) return;
         floorEl.textContent = String(n);
         floorEl.classList.remove('fp-floor-tick');
         void floorEl.offsetWidth;
@@ -372,54 +659,49 @@ function playElevatorArrival(onDone) {
         OfficeAudio?.playElevatorFloorDing?.(n);
     };
 
-    const finish = () => {
-        if (finished) return;
-        finished = true;
+    const jumpToExit = () => {
+        if (exitStarted) return;
+        exitStarted = true;
         timers.forEach(id => clearTimeout(id));
-        overlay.removeEventListener('click', onSkip);
+        overlay?.removeEventListener('click', onSkip);
         document.removeEventListener('keydown', onKeySkip);
         OfficeAudio?.stopElevatorRideHum?.();
-        overlay.classList.add('fp-elevator-fadeout');
-        timers.push(setTimeout(() => {
-            overlay.classList.add('hidden');
-            overlay.classList.remove('fp-elevator-fadeout', 'fp-elevator-doors-closed');
-            overlay.setAttribute('aria-hidden', 'true');
-            cabin.classList.remove('fp-elevator-riding');
-            fpMoving = false;
-            elevatorRideCleanup = null;
-            onDone?.();
-        }, 420));
+        if (floorEl) floorEl.textContent = '3';
+        overlay?.classList.remove('fp-elevator-doors-closed');
+        cabin?.classList.remove('fp-elevator-riding', 'fp-elevator-doors-closed');
+        OfficeAudio?.playElevatorDoorsOpen?.();
+        showElevatorExitPhase(onDone);
     };
 
-    const onSkip = () => finish();
+    const onSkip = () => jumpToExit();
     const onKeySkip = (e) => {
         if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
             e.preventDefault();
-            finish();
+            jumpToExit();
         }
     };
 
-    elevatorRideCleanup = finish;
+    elevatorRideCleanup = { onSkip, onKeySkip, abort: jumpToExit };
 
-    overlay.classList.remove('hidden', 'fp-elevator-fadeout', 'fp-elevator-doors-closed');
-    overlay.setAttribute('aria-hidden', 'false');
-    cabin.classList.remove('fp-elevator-riding');
-    floorEl.textContent = '1';
-    statusEl.textContent = fpElevatorLabel('elevator.ride.closing');
-    if (skipEl) skipEl.textContent = fpElevatorLabel('elevator.ride.skip');
-
-    unlockOfficeAudio();
-    overlay.addEventListener('click', onSkip);
+    if (overlay) {
+        overlay.classList.remove('fp-elevator-waiting');
+        overlay.addEventListener('click', onSkip);
+    }
     document.addEventListener('keydown', onKeySkip);
+    if (skipEl) skipEl.textContent = skipText;
+    if (floorEl) floorEl.textContent = '1';
+    if (statusEl) statusEl.textContent = closingText;
 
     timers.push(setTimeout(() => {
-        overlay.classList.add('fp-elevator-doors-closed');
+        overlay?.classList.add('fp-elevator-doors-closed');
+        cabin?.classList.add('fp-elevator-doors-closed');
         OfficeAudio?.playElevatorDoorsClose?.();
-        statusEl.textContent = fpElevatorLabel('elevator.ride.going');
+        if (statusEl) statusEl.textContent = goingText;
+        if (narrEl) narrEl.textContent = goingText;
     }, 500));
 
     timers.push(setTimeout(() => {
-        cabin.classList.add('fp-elevator-riding');
+        cabin?.classList.add('fp-elevator-riding');
         OfficeAudio?.playElevatorRideHum?.();
     }, 1300));
 
@@ -427,24 +709,27 @@ function playElevatorArrival(onDone) {
 
     timers.push(setTimeout(() => {
         setFloor(3);
-        cabin.classList.remove('fp-elevator-riding');
+        cabin?.classList.remove('fp-elevator-riding');
         OfficeAudio?.stopElevatorRideHum?.();
     }, 3200));
 
     timers.push(setTimeout(() => {
-        overlay.classList.remove('fp-elevator-doors-closed');
+        overlay?.classList.remove('fp-elevator-doors-closed');
+        cabin?.classList.remove('fp-elevator-doors-closed');
         OfficeAudio?.playElevatorDoorsOpen?.();
-        statusEl.textContent = fpElevatorLabel('elevator.ride.arrived');
+        if (statusEl) statusEl.textContent = arrivedText;
+        if (narrEl) narrEl.textContent = arrivedText;
     }, 3800));
 
-    timers.push(setTimeout(finish, 4800));
+    timers.push(setTimeout(() => showElevatorExitPhase(onDone), 4700));
 }
 
 function startOfficeRoom() {
     fpRoom = 'elevator';
     fpRoomActions = [];
     fpArrivalType = 'ON_TIME';
-    fpGameTime = '08:55';
+    fpWakeArrival = false;
+    fpWalkExtraMinutes = 0;
     fpDoneHotspots.clear();
     resetFpWorld();
     bindOfficeAudioUi();
@@ -454,6 +739,8 @@ function startOfficeRoom() {
     document.getElementById('wake-screen').classList.add('hidden');
 
     const day = workspace?.player?.day || 1;
+    morningCommuteScenario = ensureMorningCommute();
+    fpGameTime = morningCommuteScenario?.elevatorTime || '08:55';
     arrivalSecondsLeft = day === 1 ? ARRIVAL_BUDGET_SEC.day1 : ARRIVAL_BUDGET_SEC.default;
     const maxSec = arrivalSecondsLeft;
     let arrivalWarned = false;
@@ -475,7 +762,9 @@ function startOfficeRoom() {
             arrivalWarned = true;
             const narr = document.getElementById('fp-narrative');
             if (narr) {
-                narr.textContent = '⏰ Скоро daily! Ускорьтесь — дойдите до стола и включите DevOS.';
+                narr.textContent = typeof t === 'function'
+                    ? t('arrival.timerWarning')
+                    : '⏰ Мало времени! Дойдите до стола и включите DevOS до начала дня.';
             }
         }
 
@@ -485,8 +774,12 @@ function startOfficeRoom() {
         }
     }, 100);
 
-    playElevatorArrival(() => {
+    showElevatorCallPanel(() => {
         enterRoom('elevator', true);
+        const narr = document.getElementById('fp-narrative');
+        if (narr && morningCommuteScenario?.headline) {
+            narr.textContent = morningCommuteScenario.headline;
+        }
         Tutorial?.maybeStartOfficeTutorial();
     });
 }
@@ -703,8 +996,8 @@ function onHotspot(sp) {
         const after = advanceFpGameTime(minutes);
 
         if (sp.action) fpRoomActions.push(sp.action);
+        if (sp.action === 'kitchen_chat') fpWalkExtraMinutes += 12;
         if (sp.arrival) fpArrivalType = sp.arrival;
-        if (sp.action === 'slow' && fpArrivalType === 'ON_TIME') fpArrivalType = 'LATE';
 
         fpDoneHotspots.add(doneKey);
         const layer = document.getElementById('fp-hotspots');
@@ -765,8 +1058,16 @@ async function finishOfficeRoom() {
 
     await delay(300);
 
-    const body = { type: fpArrivalType };
-    if (fpRoomActions.length) body.roomActions = fpRoomActions;
+    const body = { roomActions: fpRoomActions.length ? fpRoomActions : undefined };
+    const wasWakeArrival = fpWakeArrival;
+    if (fpWakeArrival && (fpArrivalType === 'OVERSLEPT' || fpArrivalType === 'LATE')) {
+        body.type = fpArrivalType;
+    } else {
+        body.commuteMinutesLate = Math.max(0,
+            (morningCommuteScenario?.minutesLate || 0) + fpWalkExtraMinutes);
+        if (morningCommuteScenario?.text) body.excuse = morningCommuteScenario.text;
+    }
+    fpWakeArrival = false;
 
     const resp = await api('/desk/arrive', {
         method: 'POST',
@@ -788,7 +1089,7 @@ async function finishOfficeRoom() {
         startMessageDrip();
         pushNotification('🖥 DevOS', t('notify.devos.title'), t('notify.devos.body'), 'slack');
 
-        if (fpArrivalType !== 'ON_TIME') {
+        if (wasWakeArrival || (workspace?.lateMinutes || 0) > 30) {
             pendingLateReply = true;
             pushNotification('📱 SMS', 'Анна С.', t('notify.late.sms'), 'danger', () => openAppWindow('slack'));
         }
@@ -828,35 +1129,41 @@ function buildPreludeSlides() {
     const company = workspace?.projectCompany || 'компании';
     const day = workspace?.player?.day || 1;
     const channel = workspace?.slackChannel || '#team';
+    const sc = ensureMorningCommute();
 
     if (day === 1) {
+        const wake = sc?.wakeTime || '07:08';
+        const leave = sc?.leaveTime || '08:22';
+        const elev = sc?.elevatorTime || '08:52';
         return [
             {
-                time: '07:08',
+                time: wake,
                 line1: preludeLabel('prelude.day1.wake', { company }),
                 line2: preludeLabel('prelude.day1.line1'),
                 status: preludeLabel('prelude.day1.status', { status: preludeLabel('prelude.status.wake') })
             },
             {
-                time: '08:22',
-                line1: preludeLabel('prelude.day1.commute', { min: 18 }),
-                line2: preludeLabel('prelude.day1.line2', { min: minutesUntil('08:22') }),
+                time: leave,
+                line1: sc?.text || preludeLabel('prelude.day1.commute', { min: 18 }),
+                line2: sc?.headline || preludeLabel('prelude.day1.line2', { min: minutesUntil('08:22') }),
                 status: preludeLabel('prelude.day1.status', { status: preludeLabel('prelude.status.commute') })
             },
             {
-                time: '08:52',
+                time: elev,
                 line1: preludeLabel('prelude.day1.arrive'),
-                line2: preludeLabel('prelude.day1.line2', { min: minutesUntil('08:52') }),
+                line2: sc?.minutesLate > 10
+                    ? `Лифт · опоздание +${sc.minutesLate} мин`
+                    : preludeLabel('prelude.day1.line2', { min: minutesUntil(elev) }),
                 status: channel + ' · ' + preludeLabel('prelude.day1.status', { status: preludeLabel('prelude.status.arrive') })
             }
         ];
     }
 
-    const time = `08:${String(40 + (day % 15)).padStart(2, '0')}`;
+    const time = sc?.elevatorTime || `08:${String(40 + (day % 15)).padStart(2, '0')}`;
     return [{
         time,
         line1: preludeLabel('prelude.later.line1', { day, company }),
-        line2: preludeLabel('prelude.later.line2', { min: minutesUntil(time) }),
+        line2: sc?.headline || preludeLabel('prelude.later.line2', { min: minutesUntil(time) }),
         status: preludeLabel('prelude.later.status')
     }];
 }
@@ -956,7 +1263,16 @@ function runPrelude(onDone) {
     document.addEventListener('keydown', preludeKeyHandler);
 }
 
+function ensureMorningCommute() {
+    const day = workspace?.player?.day || 1;
+    if (!morningCommuteScenario && typeof MorningCommute !== 'undefined') {
+        morningCommuteScenario = MorningCommute.roll(day);
+    }
+    return morningCommuteScenario;
+}
+
 function showArrivalScene(options = {}) {
+    ensureMorningCommute();
     if (options.prelude) {
         runPrelude(startOfficeRoom);
     } else {
@@ -995,6 +1311,7 @@ function resumeOfficeFromDesk() {
 async function enterDeskFromWake(arrivalType) {
     stopArrivalTimer();
     fpArrivalType = arrivalType;
+    fpWakeArrival = true;
     fpRoomActions = [];
 
     hideAllScreens();

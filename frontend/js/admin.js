@@ -17,6 +17,18 @@ async function adminApi(path, options = {}) {
     return res.json();
 }
 
+function formatDate(iso) {
+    if (!iso) return '—';
+    try {
+        return new Date(iso).toLocaleString('ru-RU', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    } catch {
+        return iso;
+    }
+}
+
 function renderStats(stats) {
     document.getElementById('admin-stats').innerHTML = `
         <article class="admin-stat-card"><span class="admin-stat-num">${stats.userCount}</span><span>пользователей</span></article>
@@ -27,16 +39,15 @@ function renderStats(stats) {
 function renderUsers(users) {
     const tbody = document.getElementById('admin-users');
     if (!users.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="admin-empty">Пока никого</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="admin-empty">Пока никого</td></tr>';
         return;
     }
     tbody.innerHTML = users.map(u => `
         <tr>
             <td>${u.id}</td>
             <td>${u.username}${u.admin ? ' <span class="admin-badge">admin</span>' : ''}</td>
-            <td>${u.phone || '—'}</td>
-            <td>${u.email || '—'}</td>
             <td>${u.displayName}</td>
+            <td>${formatDate(u.createdAt)}</td>
             <td>${u.hasSave ? (u.saveSummary || 'есть') : '—'}</td>
             <td>${u.admin ? '' : `<button type="button" class="btn btn-secondary btn-sm admin-del" data-id="${u.id}">Удалить</button>`}</td>
         </tr>`).join('');
